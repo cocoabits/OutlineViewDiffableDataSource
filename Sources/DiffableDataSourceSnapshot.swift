@@ -292,6 +292,10 @@ private extension DiffableDataSourceSnapshot {
   /// - Parameter newItems: New items not yet added to the snapshot.
   func validateNewItems(_ newItems: [Item]) -> Bool {
     let newIdentifiers = Set(newItems.map(\.id))
+    guard newIdentifiers.count == newItems.count else {
+      os_log(.error, log: errors, "Items with duplicate IDs cannot be added")
+      return false
+    }
     let existingIdentifiers = newIdentifiers.intersection(items.keys)
     guard existingIdentifiers.isEmpty else {
       let identifiers = existingIdentifiers.map(String.init(describing:)).joined(separator: ", ")

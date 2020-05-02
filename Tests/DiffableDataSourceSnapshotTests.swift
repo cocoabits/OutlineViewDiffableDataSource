@@ -102,6 +102,7 @@ final class DiffableDataSourceSnapshotTests: XCTestCase {
     // WHEN: They are added twice
     var snapshot: DiffableDataSourceSnapshot<TestItem> = .init()
     XCTAssertTrue(snapshot.appendItems([a, b]))
+    XCTAssertFalse(snapshot.appendItems([c, c]))
     XCTAssertFalse(snapshot.appendItems([b, c]))
 
     // THEN: The second time is skipped
