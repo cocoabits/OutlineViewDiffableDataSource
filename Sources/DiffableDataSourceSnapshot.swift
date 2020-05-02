@@ -41,11 +41,7 @@ public extension DiffableDataSourceSnapshot {
 
   /// Identifiers of stored items sorted from top to bottom.
   func itemIdentifiers() -> [Item.ID] {
-    var result: [Item.ID] = []
-    enumerateItemIdentifiers { nodeIdentifier, _ in
-      result.append(nodeIdentifier)
-    }
-    return result
+    indexedItemIdentifiers().map(\.itemIdentifier)
   }
 
   /// Returns a stored item for the given identifier if available.
@@ -168,10 +164,10 @@ public extension DiffableDataSourceSnapshot {
     guard validateExistingIdentifiers(existingIdentifiers) else { return false }
 
     var affectedIdentifiers = existingIdentifiers
-    enumerateItemIdentifiers { affectedIdentifier, parentIdentifier in
-      guard let parentIdentifier = parentIdentifier else { return }
+    enumerateItemIdentifiers { indexedItemIdentifier in
+      guard let parentIdentifier = indexedItemIdentifier.parentIdentifier else { return }
       guard affectedIdentifiers.contains(parentIdentifier) else { return }
-      affectedIdentifiers.insert(affectedIdentifier)
+      affectedIdentifiers.insert(indexedItemIdentifier.itemIdentifier)
     }
 
     let parentIdentifiers = affectedIdentifiers.map { nodes[$0]?.parent }
@@ -210,9 +206,10 @@ public extension DiffableDataSourceSnapshot {
   mutating func flushReloadedItems() -> [Item] {
     guard pendingReload.isEmpty == false else { return [] }
     var result: [Item] = []
-    enumerateItemIdentifiers { itemIdentifier, _ in
-      guard pendingReload.contains(itemIdentifier) else { return }
-      result.append(items[itemIdentifier].unsafelyUnwrapped)
+    enumerateItemIdentifiers { indexedItemIdentifier in
+      let identifier = indexedItemIdentifier.itemIdentifier
+      guard pendingReload.contains(identifier) else { return }
+      result.append(items[identifier].unsafelyUnwrapped)
     }
     pendingReload.removeAll()
     return result
@@ -250,6 +247,43 @@ public extension DiffableDataSourceSnapshot {
   }
 }
 
+// MARK: - Internal API
+
+extension DiffableDataSourceSnapshot {
+
+  /// Container for sorting.
+  struct IndexedItemIdentifier: Hashable {
+
+    /// Item identifier.
+    let itemIdentifier: Item.ID
+
+    /// Optional parent item identifier.
+    let parentIdentifier: Item.ID?
+
+    /// Full path to the item.
+    let itemPath: IndexPath
+
+    /// Only IDs should be equal.
+    static func == (lhs: Self, rhs: Self) -> Bool {
+      lhs.itemIdentifier == rhs.itemIdentifier
+    }
+
+    /// Only ID means as hash.
+    func hash(into hasher: inout Hasher) {
+      hasher.combine(itemIdentifier)
+    }
+  }
+
+  /// Identifiers of stored items sorted from top to bottom.
+  func indexedItemIdentifiers() -> [IndexedItemIdentifier] {
+    var result: [IndexedItemIdentifier] = []
+    enumerateItemIdentifiers { indexedItemIdentifier in
+      result.append(indexedItemIdentifier)
+    }
+    return result
+  }
+}
+
 // MARK: - Private API
 
 private extension DiffableDataSourceSnapshot {
@@ -283,14 +317,16 @@ private extension DiffableDataSourceSnapshot {
   /// - Parameter block: Callback for every node in the tree.
   /// - Parameter itemIdentifier: Identifier of the item.
   /// - Parameter parentIdentifier: Optional identifier of the parent item.
-  func enumerateItemIdentifiers(using block: (_ itemIdentifier: Item.ID, _ parentIdentifier: Item.ID?) -> Void) {
-    func enumerateChildrenIdentifiersOfParent(_ parentIdentifier: Item.ID?) {
-      for childIdentifier in identifiersOfChildrenOfItemWithIdentifier(parentIdentifier) {
-        block(childIdentifier, parentIdentifier)
-        enumerateChildrenIdentifiersOfParent(childIdentifier)
+  /// - Parameter itemPath: Item index path for sorting.
+  func enumerateItemIdentifiers(using block: (_ indexedItemIdentifier: IndexedItemIdentifier) -> Void) {
+    func enumerateChildrenOf(_ parentIdentifier: Item.ID?, parentPath: IndexPath) {
+      identifiersOfChildrenOfItemWithIdentifier(parentIdentifier).enumerated().forEach { offset, itemIdentifier in
+        let itemPath = parentPath.appending(offset)
+        block(.init(itemIdentifier: itemIdentifier, parentIdentifier: parentIdentifier, itemPath: itemPath))
+        enumerateChildrenOf(itemIdentifier, parentPath: itemPath)
       }
     }
-    enumerateChildrenIdentifiersOfParent(nil)
+    enumerateChildrenOf(nil, parentPath: .init())
   }
 
   /// Inserts items next to the target item using a calculator for the insertion index.

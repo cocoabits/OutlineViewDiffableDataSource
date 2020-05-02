@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
   name: "OutlineViewDiffableDataSource",
-  platforms: [.macOS(.v10_14)],
+  platforms: [.macOS(.v10_15)],
   products: [.library(name: "OutlineViewDiffableDataSource", targets: ["OutlineViewDiffableDataSource"])],
   targets: [
     .target(name: "OutlineViewDiffableDataSource", dependencies: [], path: "Sources"),
