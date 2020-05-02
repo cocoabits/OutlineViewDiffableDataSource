@@ -2,7 +2,7 @@ import Foundation
 import os
 
 /// Container for the tree of items.
-public struct DiffableDataSourceSnapshot<Item: Diffable> {
+public struct DiffableDataSourceSnapshot<Item: Identifiable> {
 
   /// Used to store tree nodes for items.
   private struct Node: Hashable {

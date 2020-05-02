@@ -10,7 +10,7 @@ class ViewController: NSViewController {
   @IBOutlet var textView: NSTextView?
 
   /// Tree item.
-  struct OutlineItem: Diffable {
+  struct OutlineItem: Identifiable {
     let id: String
   }
 

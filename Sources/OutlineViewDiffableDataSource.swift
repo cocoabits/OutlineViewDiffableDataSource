@@ -1,7 +1,7 @@
 import AppKit
 
 /// Offers a diffable interface for providing content for `NSOutlineView`.  It automatically performs insertions, deletions, and moves necessary to transition from one model-state snapshot to another.
-public class OutlineViewDiffableDataSource<Item: Diffable>: NSObject, NSOutlineViewDataSource {
+public class OutlineViewDiffableDataSource<Item: Identifiable>: NSObject, NSOutlineViewDataSource {
 
   /// Tree with data.
   private var diffableSnapshot: DiffableDataSourceSnapshot<Item>
@@ -46,7 +46,6 @@ public class OutlineViewDiffableDataSource<Item: Diffable>: NSObject, NSOutlineV
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
     guard let item = item as? Item else { return true }
-    guard item.isLeaf == false else { return false }
     return diffableSnapshot.numberOfItems(in: item) > 0
   }
 

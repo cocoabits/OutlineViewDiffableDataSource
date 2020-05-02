@@ -3,7 +3,7 @@ import OutlineViewDiffableDataSource
 
 final class DiffableDataSourceSnapshotTests: XCTestCase {
 
-  struct TestItem: Equatable, Diffable { let id: String }
+  struct TestItem: Equatable, Identifiable { let id: String }
 
   func testEmptyState() {
 
