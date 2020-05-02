@@ -26,8 +26,23 @@ extension ViewController {
   override func viewDidLoad() {
     super.viewDidLoad()
 
+    if let textView = self.textView, textView.string.isEmpty {
+      textView.string = """
+        Parent 1 / Child 11
+        Parent 1 / Child 12
+        Parent 1 / Child 13
+        Parent 2
+        Parent 3 / Child 31
+        Parent 3 / Child 32
+        Parent 3 / Child 33
+        """
+    }
+
     guard let outlineView = self.outlineView else { return }
     dataSource = .init(outlineView: outlineView)
+
+    reloadData(animated: false)
+    outlineView.expandItem(nil, expandChildren: true)
   }
 }
 
@@ -37,7 +52,17 @@ private extension ViewController {
 
   /// Called when you hit the button.
   @IBAction func applySnapshot(_ sender: Any?) {
-    guard let textView = self.textView else { return }
+    reloadData(animated: UserDefaults.standard.bool(forKey: "ShouldAnimate"))
+  }
+}
+
+// MARK: - Private API
+
+private extension ViewController {
+
+  /// Creates a snapshot from the text view contents.
+  func reloadData(animated: Bool) {
+    guard let textView = self.textView, let dataSource = self.dataSource else { return }
     var snapshot: DiffableDataSourceSnapshot<OutlineItem> = .init()
     let lines = textView.string.components(separatedBy: .newlines)
     for line in lines {
@@ -53,7 +78,6 @@ private extension ViewController {
         continue
       }
     }
-    let shouldAnimate = UserDefaults.standard.bool(forKey: "ShouldAnimate")
-    dataSource?.applySnapshot(snapshot, animatingDifferences: shouldAnimate)
+    dataSource.applySnapshot(snapshot, animatingDifferences: animated)
   }
 }
