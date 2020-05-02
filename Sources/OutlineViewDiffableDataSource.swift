@@ -33,6 +33,12 @@ public class OutlineViewDiffableDataSource<Item: Diffable>: NSObject, NSOutlineV
   }
 
   /// Uses diffable snapshot.
+  public func outlineView(_ outlineView: NSOutlineView, objectValueFor tableColumn: NSTableColumn?, byItem item: Any?) -> Any? {
+    guard let item = item as? Item else { return true }
+    return item.id
+  }
+
+  /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
     diffableSnapshot.childrenOfItem(item as? Item)[index]
   }
@@ -117,7 +123,7 @@ public extension OutlineViewDiffableDataSource {
             // Insert outline view item
             let insertionIndexes = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
             let parentItem = inserted.parentIdentifier.flatMap(newSnapshot.itemWithIdentifier(_:))
-            outlineView.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .effectGap])
+            outlineView.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
           }
 
         case .remove(_, let before, let indexAfter):
@@ -125,7 +131,7 @@ public extension OutlineViewDiffableDataSource {
             // Delete outline view item
             let deletionIndexes = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
             let oldParentItem = before.parentIdentifier.flatMap(oldSnapshot.itemWithIdentifier(_:))
-            outlineView.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .effectGap])
+            outlineView.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
           }
         }
       }
