@@ -67,7 +67,7 @@ public extension DiffableDataSourceSnapshot {
     guard let parentItem = parentItem else { return rootChildren.count }
     guard let parentNode = nodes[parentItem.id] else {
       os_log(.error, log: errors, "Cannot find item with ID “%s”", String(describing: parentItem.id))
-      return NSNotFound
+      return 0
     }
     return parentNode.children.count
   }
@@ -94,18 +94,17 @@ public extension DiffableDataSourceSnapshot {
     return items[parentIdentifier]
   }
 
-  /// Returns index of the given child item in its parent.
+  /// Returns index of the given child item in its parent, or `nil` if the given item is not in the snapshot.
   /// - Parameter childItem: Child item added to the snapshot before.
-  /// - Returns: `NSNotFound` if the given item is not in the snapshot.
-  func indexOfItem(_ childItem: Item) -> Int {
+  func indexOfItem(_ childItem: Item) -> Int? {
     let childIdentifier = childItem.id
     guard let childNode = nodes[childIdentifier] else {
       os_log(.error, log: errors, "Cannot find item with ID “%s”", String(describing: childItem.id))
-      return NSNotFound
+      return nil
     }
     let parentIdentifier = childNode.parent
     let children = identifiersOfChildrenOfItemWithIdentifier(parentIdentifier)
-    return children.firstIndex(of: childIdentifier).unsafelyUnwrapped
+    return children.firstIndex(of: childIdentifier)
   }
 
   /// Appends items to the end of the given parent.

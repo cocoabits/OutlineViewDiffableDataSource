@@ -83,10 +83,10 @@ final class DiffableDataSourceSnapshotTests: XCTestCase {
     XCTAssertTrue(snapshot.appendItems([x]))
 
     // THEN: The second item cannot be found
-    XCTAssertEqual(snapshot.numberOfItems(in: y), NSNotFound)
+    XCTAssertEqual(snapshot.numberOfItems(in: y), 0)
     XCTAssertTrue(snapshot.childrenOfItem(y).isEmpty)
     XCTAssertNil(snapshot.parentOfItem(y))
-    XCTAssertEqual(snapshot.indexOfItem(y), NSNotFound)
+    XCTAssertNil(snapshot.indexOfItem(y))
     XCTAssertNotNil(snapshot.itemWithIdentifier("x"))
     XCTAssertNil(snapshot.itemWithIdentifier("y"))
     XCTAssertTrue(snapshot.identifiersOfChildrenOfItemWithIdentifier("y").isEmpty)
