@@ -9,13 +9,13 @@ class ViewController: NSViewController {
   /// Trailing text view.
   @IBOutlet var textView: NSTextView?
 
-  /// Tree item.
-  struct OutlineItem: Identifiable {
+  /// Sample item.
+  struct SampleItem: OutlineViewItem {
     let id: String
   }
 
   /// Diffable data source similar to `NSCollectionViewDiffableDataSource`.
-  var dataSource: OutlineViewDiffableDataSource<OutlineItem>?
+  var dataSource: OutlineViewDiffableDataSource<SampleItem>?
 }
 
 // MARK: -
@@ -63,17 +63,23 @@ private extension ViewController {
   /// Creates a snapshot from the text view contents.
   func reloadData(animated: Bool) {
     guard let textView = self.textView, let dataSource = self.dataSource else { return }
-    var snapshot: DiffableDataSourceSnapshot<OutlineItem> = .init()
+    var snapshot: DiffableDataSourceSnapshot<SampleItem> = .init()
     let lines = textView.string.components(separatedBy: .newlines)
     for line in lines {
       let items = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }
-        .filter { $0.isEmpty == false }.map(OutlineItem.init(id:))
+        .filter { $0.isEmpty == false }.map(SampleItem.init(id:))
       switch items.count {
       case 1:
-        snapshot.appendItems([items[0]])
+        if snapshot.itemWithIdentifier(items[0].id) == nil {
+          snapshot.appendItems([items[0]])
+        }
       case 2:
-        snapshot.appendItems([items[0]])
-        snapshot.appendItems([items[1]], into: items[0])
+        if snapshot.itemWithIdentifier(items[0].id) == nil {
+          snapshot.appendItems([items[0]])
+        }
+        if snapshot.itemWithIdentifier(items[1].id) == nil {
+          snapshot.appendItems([items[1]], into: items[0])
+        }
       default:
         continue
       }

@@ -1,7 +1,7 @@
 import AppKit
 
 /// Offers a diffable interface for providing content for `NSOutlineView`.  It automatically performs insertions, deletions, and moves necessary to transition from one model-state snapshot to another.
-public class OutlineViewDiffableDataSource<Item: Identifiable>: NSObject, NSOutlineViewDataSource {
+public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
 
   /// Tree with data.
   private var diffableSnapshot: DiffableDataSourceSnapshot<Item>
@@ -17,12 +17,16 @@ public class OutlineViewDiffableDataSource<Item: Identifiable>: NSObject, NSOutl
     super.init()
 
     precondition(outlineView.dataSource == nil)
+    precondition(outlineView.delegate == nil)
     outlineView.dataSource = self
+    outlineView.delegate = self
+    outlineView.usesAutomaticRowHeights = true
     self.outlineView = outlineView
   }
 
   deinit {
     self.outlineView?.dataSource = nil
+    self.outlineView?.delegate = nil
   }
 
   // MARK: - NSOutlineViewDataSource
@@ -33,12 +37,6 @@ public class OutlineViewDiffableDataSource<Item: Identifiable>: NSObject, NSOutl
   }
 
   /// Uses diffable snapshot.
-  public func outlineView(_ outlineView: NSOutlineView, objectValueFor tableColumn: NSTableColumn?, byItem item: Any?) -> Any? {
-    guard let item = item as? Item else { return true }
-    return item.id
-  }
-
-  /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
     diffableSnapshot.childrenOfItem(item as? Item)[index]
   }
@@ -46,7 +44,7 @@ public class OutlineViewDiffableDataSource<Item: Identifiable>: NSObject, NSOutl
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
     guard let item = item as? Item else { return true }
-    return diffableSnapshot.numberOfItems(in: item) > 0
+    return item.isExpandable
   }
 
   /// Uses diffable snapshot.
@@ -59,6 +57,45 @@ public class OutlineViewDiffableDataSource<Item: Identifiable>: NSObject, NSOutl
   public func outlineView(_ outlineView: NSOutlineView, persistentObjectForItem item: Any?) -> Any? {
     guard let item = item as? Item else { return nil }
     return item.id
+  }
+
+  // MARK: - NSOutlineViewDelegate
+
+  /// Creates a cell view for the given item,
+  public func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
+    guard let item = item as? Item else { return nil }
+    let cellViewType = item.cellViewType(for: tableColumn) ?? CustomTableCellView.self
+    let cellViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(cellViewType))
+    let cachedCellView = outlineView.makeView(withIdentifier: cellViewTypeIdentifier, owner: self)
+    let cellView = cachedCellView as? NSTableCellView ?? {
+      let newCellView = cellViewType.init()
+      newCellView.identifier = cellViewTypeIdentifier
+      return newCellView
+    }()
+    cellView.objectValue = item
+    return cellView
+  }
+
+  /// Filters selectable items.
+  public func outlineView(_ outlineView: NSOutlineView, selectionIndexesForProposedSelection proposedSelectionIndexes: IndexSet) -> IndexSet {
+    proposedSelectionIndexes.filteredIndexSet {
+      guard let item = outlineView.item(atRow: $0) as? Item else { return false }
+      return item.isSelectable
+    }
+  }
+
+  /// Creates a row view for the given item,
+  public func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
+    guard let item = item as? Item else { return nil }
+    let rowViewType = item.rowViewType ?? NSTableRowView.self
+    let rowViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(rowViewType))
+    let cachedRowView = outlineView.makeView(withIdentifier: rowViewTypeIdentifier, owner: self)
+    let rowView = cachedRowView as? NSTableRowView ?? {
+      let newRowView = rowViewType.init()
+      newRowView.identifier = rowViewTypeIdentifier
+      return newRowView
+    }()
+    return rowView
   }
 }
 

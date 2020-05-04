@@ -3,7 +3,7 @@ import OutlineViewDiffableDataSource
 
 final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
-  struct OutlineItem: Equatable, Identifiable { let id: String }
+  struct OutlineItem: Equatable, OutlineViewItem { let id: String }
 
   private lazy var outlineView: NSOutlineView = {
     let firstColumn = NSTableColumn()
