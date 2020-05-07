@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import OutlineViewDiffableDataSource
 
@@ -9,7 +10,11 @@ final class MainViewController: NSViewController {
   private lazy var masterViewController: MasterViewController = .init()
 
   /// Detail view controller with tab views for current selection.
-  private lazy var detailViewController: DetailViewController = .init(snapshotBinding: masterViewController.snapshotBinding)
+  private lazy var detailViewController: DetailViewController =
+    .init(snapshotBinding: masterViewController.snapshotBinding)
+
+  /// Storage for cancellables.
+  var subscriptions: Set<AnyCancellable> = []
 
   /// Master-detail split view.
   private lazy var splitViewController: NSSplitViewController = {
@@ -37,8 +42,14 @@ extension MainViewController {
     super.viewDidLoad()
 
     title = ProcessInfo.processInfo.processName
+
+    masterViewController.selectionPublisher.sink { [detailViewController] in
+      detailViewController.representedObject = $0
+    }
+    .store(in: &subscriptions)
   }
 
+  /// Setup auto-save configuration when the view is laid out.
   override func viewWillAppear() {
     super.viewWillAppear()
 

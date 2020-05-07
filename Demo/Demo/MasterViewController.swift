@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 import OutlineViewDiffableDataSource
 
@@ -57,5 +58,18 @@ extension MasterViewController {
       let animate = UserDefaults.standard.bool(forKey: "ShouldAnimate")
       dataSource.applySnapshot(snapshot, animatingDifferences: animate)
     })
+  }
+
+  /// Read-only selection.
+  var selectionPublisher: AnyPublisher<[MasterItem], Never> {
+    NotificationCenter.default
+      .publisher(for: NSOutlineView.selectionDidChangeNotification, object: scrollableOutlineView.outlineView)
+      .compactMap { notification in notification.object as? NSOutlineView }
+      .map { outlineView in
+        outlineView.selectedRowIndexes.compactMap { selectedRow in
+          outlineView.item(atRow: selectedRow) as? MasterItem
+        }
+      }
+      .eraseToAnyPublisher()
   }
 }

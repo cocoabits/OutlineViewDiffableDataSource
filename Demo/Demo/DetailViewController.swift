@@ -71,4 +71,51 @@ extension DetailViewController {
     view = stackView
     addChild(tabViewController)
   }
+
+  /// Switches to the correct tab depending on the current selection.
+  override func viewDidLoad() {
+    super.viewDidLoad()
+
+    updateContents()
+  }
+
+  /// Switches to the correct tab depending on the current selection.
+  override var representedObject: Any? {
+    didSet {
+      updateContents()
+    }
+  }
+}
+
+// MARK: - Private API
+
+private extension DetailViewController {
+
+  /// View controller represented by the selected tab.
+  var selectedViewController: NSViewController? {
+    get {
+      tabViewController.tabViewItems[tabViewController.selectedTabViewItemIndex].viewController
+    }
+    set {
+      let selectedIndex = tabViewController.tabViewItems.firstIndex { $0.viewController == newValue }
+      tabViewController.selectedTabViewItemIndex = selectedIndex ?? 0
+    }
+  }
+
+  /// Switches to the tab and assigns its represented object.
+  func updateContents() {
+    guard isViewLoaded else { return }
+
+    guard let selection = representedObject as? [MasterItem], selection.isEmpty == false else {
+      selectedViewController = emptyViewController
+      return
+    }
+    if selection.count == 1 {
+      singleViewController.representedObject = selection[0]
+      selectedViewController = singleViewController
+    } else {
+      multiViewController.representedObject = selection
+      selectedViewController = multiViewController
+    }
+  }
 }
