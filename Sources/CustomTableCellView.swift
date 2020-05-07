@@ -1,10 +1,10 @@
 import AppKit
 
 /// Custom implementation.
-class CustomTableCellView: NSTableCellView {
+open class CustomTableCellView: NSTableCellView {
 
   /// Creates a cell with a label.
-  init() {
+  public init() {
     super.init(frame: .zero)
 
     let label = NSTextField(labelWithString: "")
@@ -32,8 +32,15 @@ class CustomTableCellView: NSTableCellView {
   }
 
   @available(*, unavailable, message: "Use init")
-  required init?(coder: NSCoder) {
+  public required init?(coder: NSCoder) {
     fatalError()
+  }
+
+  // MARK: - Open API
+  
+  /// Shows description of the object value.
+  open func updateContents() {
+    textField?.stringValue = objectValue.map(String.init(describing:)) ?? ""
   }
 }
 
@@ -42,16 +49,16 @@ class CustomTableCellView: NSTableCellView {
 extension CustomTableCellView {
 
   /// Erases previous contents before inserting cell view into the column.
-  override func prepareForReuse() {
+  open override func prepareForReuse() {
     super.prepareForReuse()
 
     self.textField?.stringValue = ""
   }
 
   /// Updates the label using an object value.
-  override var objectValue: Any? {
+  open override var objectValue: Any? {
     didSet {
-      self.textField?.stringValue = objectValue.map(String.init(describing:)) ?? ""
+      updateContents()
     }
   }
 }
