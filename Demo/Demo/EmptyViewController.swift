@@ -5,7 +5,7 @@ import OutlineViewDiffableDataSource
 /// The number of controls for an empty outline view selection.
 final class EmptyViewController: NSViewController {
 
-  /// Temporary label for the title.
+  /// Multiline text editor for the outline contents.
   private lazy var scrollableEditor: NSScrollView = {
     let scrollView = NSTextView.scrollablePlainDocumentContentTextView()
     scrollView.borderType = .lineBorder

@@ -5,9 +5,6 @@ import OutlineViewDiffableDataSource
 /// Editor for the multiple selected items in the sidebar.
 final class MultiViewController: NSViewController {
 
-  /// Temporary label for the title.
-  private lazy var label: NSTextField = .init(labelWithString: "Multi")
-
   /// Sidebar data source.
   private let snapshotBinding: Binding<DiffableDataSourceSnapshot<MasterItem>>
 
@@ -32,7 +29,21 @@ extension MultiViewController {
   override func loadView() {
     let stackView = NSStackView()
     stackView.orientation = .vertical
-    stackView.addView(label, in: .center)
+    stackView.addView(NSButton(title: "Remove Selected Items", target: self, action: #selector(removeSelectedItems(_:))), in: .center)
+    stackView.setHuggingPriority(.fittingSizeCompression, for: .horizontal)
     view = stackView
+  }
+}
+
+// MARK: - Actions
+
+private extension MultiViewController {
+
+  /// Removes selected items.
+  @IBAction func removeSelectedItems(_ sender: Any?) {
+    guard let selectedItems = representedObject as? [MasterItem] else { return }
+    var snapshot = snapshotBinding.wrappedValue
+    snapshot.deleteItems(selectedItems)
+    snapshotBinding.wrappedValue = snapshot
   }
 }
