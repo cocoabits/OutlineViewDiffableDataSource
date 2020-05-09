@@ -42,7 +42,9 @@ extension EmptyViewController {
     stackView.orientation = .vertical
     stackView.distribution = .fill
     stackView.addView(scrollableEditor, in: .center)
-    stackView.addView(NSButton(title: "Replace Sidebar Contents", target: self, action: #selector(applySnapshot(_:))), in: .center)
+    stackView.addView(NSButton(title: "Replace Sidebar Contents", target: self, action: #selector(replaceSidebarContents(_:))), in: .center)
+    stackView.addView(NSButton(title: "Expand All Items", target: nil, action: #selector(MasterViewController.expandAllItems(_:))), in: .center)
+    stackView.addView(NSButton(title: "Collapse All Items", target: nil, action: #selector(MasterViewController.collapseAllItems(_:))), in: .center)
     stackView.setHuggingPriority(.fittingSizeCompression, for: .horizontal)
     view = stackView
   }
@@ -69,7 +71,7 @@ extension EmptyViewController {
 private extension EmptyViewController {
 
   /// Replaces the whole tree with the given contents.
-  @IBAction func applySnapshot(_ sender: Any?) {
+  @IBAction func replaceSidebarContents(_ sender: Any?) {
     guard let textView = scrollableEditor.documentView as? NSTextView else { return }
     var snapshot: DiffableDataSourceSnapshot<MasterItem> = .init()
     let lines = textView.string.components(separatedBy: .newlines)

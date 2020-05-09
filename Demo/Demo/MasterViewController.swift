@@ -73,3 +73,18 @@ extension MasterViewController {
       .eraseToAnyPublisher()
   }
 }
+
+// MARK: - Actions
+
+extension MasterViewController {
+
+  /// Expands all outline view items.
+  @IBAction func expandAllItems(_ sender: Any?) {
+    scrollableOutlineView.outlineView.expandItem(nil, expandChildren: true)
+  }
+
+  /// Collapses all outline view items.
+  @IBAction func collapseAllItems(_ sender: Any?) {
+    scrollableOutlineView.outlineView.collapseItem(nil, collapseChildren: true)
+  }
+}
