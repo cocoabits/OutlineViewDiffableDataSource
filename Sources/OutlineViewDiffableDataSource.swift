@@ -59,6 +59,21 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
     return item.id
   }
 
+  /// Allows dragging items which return Pasteboard representation.
+  public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
+    guard let item = item as? Item else { return nil }
+    return item.pasteboardRepresentation
+  }
+
+  /// This override is necessary to disable special mouse down behavior in the outline view.
+  public override func responds(to aSelector: Selector?) -> Bool {
+    if Item.allowsDragging == false && aSelector == #selector(outlineView(_:pasteboardWriterForItem:)) {
+      return false
+    } else {
+      return super.responds(to: aSelector)
+    }
+  }
+
   // MARK: - NSOutlineViewDelegate
 
   /// Creates a cell view for the given item,

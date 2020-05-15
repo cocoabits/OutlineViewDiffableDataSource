@@ -15,6 +15,12 @@ public protocol OutlineViewItem: Identifiable {
 
   /// Called to create a row view of the custom type.
   var rowViewType: NSTableRowView.Type? { get }
+
+  /// Return true to enable drag-n-drop.
+  static var allowsDragging: Bool { get }
+
+  /// Returns pasteboard representation for the outline view.
+  var pasteboardRepresentation: NSPasteboardItem? { get }
 }
 
 // MARK: -
@@ -32,4 +38,10 @@ public extension OutlineViewItem {
 
   /// Use a standard row view type by default.
   var rowViewType: NSTableRowView.Type? { nil }
+
+  /// Disable drag-n-drop by default.
+  static var allowsDragging: Bool { false }
+
+  /// Items cannot be dragged by default.
+  var pasteboardRepresentation: NSPasteboardItem? { nil }
 }

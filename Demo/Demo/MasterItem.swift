@@ -10,15 +10,23 @@ struct MasterItem: OutlineViewItem {
   /// Visible string.
   let title: String
 
-  /// Returns custom cell view type.
-  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type? {
-    MasterCellView.self
-  }
+  /// Enable drag-n-drop.
+  static let allowsDragging: Bool = true
 
   /// Creates a new item ready for insertion into the sidebar.
   init(id: String, title: String) {
     self.id = id
     self.title = title
+  }
+
+  /// Returns custom cell view type.
+  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type? {
+    MasterCellView.self
+  }
+
+  /// Enables drag-n-drop.
+  var pasteboardRepresentation: NSPasteboardItem? {
+    NSPasteboardItem(pasteboardPropertyList: id, ofType: .string)
   }
 }
 
