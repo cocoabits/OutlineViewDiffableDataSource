@@ -98,14 +98,25 @@ extension MasterViewController {
 
 extension MasterViewController {
 
+  /// Reloads data from the data source to check consistency.
+  @IBAction func reloadSidebar(_ sender: Any?) {
+    scrollableOutlineView.outlineView.reloadData()
+  }
+
   /// Expands all outline view items.
   @IBAction func expandAllItems(_ sender: Any?) {
-    scrollableOutlineView.outlineView.expandItem(nil, expandChildren: true)
+    NSAnimationContext.runAnimationGroup { context in
+      if shouldAnimate == false { context.duration = 0 }
+      scrollableOutlineView.outlineView.animator().expandItem(nil, expandChildren: true)
+    }
   }
 
   /// Collapses all outline view items.
   @IBAction func collapseAllItems(_ sender: Any?) {
-    scrollableOutlineView.outlineView.collapseItem(nil, collapseChildren: true)
+    NSAnimationContext.runAnimationGroup { context in
+      if shouldAnimate == false { context.duration = 0 }
+      scrollableOutlineView.outlineView.animator().collapseItem(nil, collapseChildren: true)
+    }
   }
 }
 
