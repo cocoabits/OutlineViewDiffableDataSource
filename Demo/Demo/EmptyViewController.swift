@@ -43,7 +43,7 @@ extension EmptyViewController {
     stackView.distribution = .fill
     stackView.addView(scrollableEditor, in: .center)
     stackView.addView(NSButton(title: "Fill Sidebar", target: self, action: #selector(fillSidebar(_:))), in: .center)
-    stackView.addView(NSButton(title: "Reload Sidebar", target: nil, action: #selector(MasterViewController.reloadSidebar(_:))), in: .center)
+    stackView.addView(NSButton(title: "Copy From Sidebar", target: self, action: #selector(copyFromSidebar(_:))), in: .center)
     stackView.addView(NSButton(title: "Expand All Items", target: nil, action: #selector(MasterViewController.expandAllItems(_:))), in: .center)
     stackView.addView(NSButton(title: "Collapse All Items", target: nil, action: #selector(MasterViewController.collapseAllItems(_:))), in: .center)
     stackView.setHuggingPriority(.fittingSizeCompression, for: .horizontal)
@@ -96,5 +96,16 @@ private extension EmptyViewController {
       }
     }
     snapshotBinding.wrappedValue = snapshot
+  }
+
+  /// Replaces text with sidebar contents.
+  @IBAction func copyFromSidebar(_ sender: Any?) {
+    guard let textView = scrollableEditor.documentView as? NSTextView else { return }
+    let snapshot = snapshotBinding.wrappedValue
+    var items: [String] = []
+    snapshot.enumerateItems { item, parentItem in
+      items.append([parentItem?.title, item.title].compactMap { $0 }.joined(separator: " / "))
+    }
+    textView.string = items.joined(separator: "\n")
   }
 }

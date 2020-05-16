@@ -98,11 +98,6 @@ extension MasterViewController {
 
 extension MasterViewController {
 
-  /// Reloads data from the data source to check consistency.
-  @IBAction func reloadSidebar(_ sender: Any?) {
-    scrollableOutlineView.outlineView.reloadData()
-  }
-
   /// Expands all outline view items.
   @IBAction func expandAllItems(_ sender: Any?) {
     NSAnimationContext.runAnimationGroup { context in

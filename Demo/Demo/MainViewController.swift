@@ -56,4 +56,14 @@ extension MainViewController {
 
     splitViewController.splitView.autosaveName = "MasterDetail"
   }
+
+  /// Necessary for sidebar actions to work when focus is on the Detail panel.
+  override func supplementalTarget(forAction action: Selector, sender: Any?) -> Any? {
+    switch action {
+    case #selector(MasterViewController.expandAllItems(_:)), #selector(MasterViewController.collapseAllItems(_:)):
+      return masterViewController
+    default:
+      return super.supplementalTarget(forAction: action, sender: sender)
+    }
+  }
 }

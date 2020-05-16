@@ -244,6 +244,17 @@ public extension DiffableDataSourceSnapshot {
   mutating func moveItem(_ item: Item, afterItem: Item) -> Bool  {
     moveItem(item, aroundItem: afterItem) { $0 + 1 }
   }
+
+  /// Enumerates all items from top to bottom.
+  /// - Parameter block: Callback for each item.
+  /// - Parameter item: Enumerated item.
+  /// - Parameter parentItem: Parent item if available.
+  func enumerateItems(using block: (_ item: Item, _ parentItem: Item?) -> Void) {
+    enumerateItemIdentifiers { id in
+      guard let item = itemWithIdentifier(id.itemIdentifier) else { return }
+      block(item, id.parentIdentifier.flatMap(itemWithIdentifier))
+    }
+  }
 }
 
 // MARK: - Internal API
