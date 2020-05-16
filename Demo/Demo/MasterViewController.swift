@@ -35,13 +35,23 @@ final class MasterViewController: NSViewController {
   /// Diffable data source similar to `NSCollectionViewDiffableDataSource`.
   private lazy var dataSource: OutlineViewDiffableDataSource<MasterItem> = {
     let source = OutlineViewDiffableDataSource<MasterItem>(outlineView: scrollableOutlineView.outlineView)
-    source.canDropHandler = { draggedItems, proposedDrop in
-      switch proposedDrop {
-      case .onItem(let targetItem, _), .beforeItem(let targetItem, _), .afterItem(let targetItem, _):
-        return draggedItems.allSatisfy { $0.id != targetItem.id } ? proposedDrop : .denied
-      case .denied:
-        return .denied
+    source.validateDropHandler = { _, drop in
+      guard drop.operation.contains(.move), drop.draggedItems.allSatisfy({ $0.id != drop.targetItem.id }) else { return nil }
+      return .init(type: drop.type, targetItem: drop.targetItem, draggedItems: drop.draggedItems, operation: .move)
+    }
+    source.acceptDropHandler = { sender, drop in
+      var snapshot = sender.snapshot()
+      snapshot.deleteItems(drop.draggedItems)
+      switch drop.type {
+      case .on:
+        snapshot.appendItems(drop.draggedItems, into: drop.targetItem)
+      case .before:
+        snapshot.insertItems(drop.draggedItems, beforeItem: drop.targetItem)
+      case .after:
+        snapshot.insertItems(drop.draggedItems, afterItem: drop.targetItem)
       }
+      sender.applySnapshot(snapshot, animatingDifferences: shouldAnimate)
+      return true
     }
     return source
   }()
@@ -66,8 +76,7 @@ extension MasterViewController {
     .init(get: { [dataSource] in
       dataSource.snapshot()
     }, set: { [dataSource] snapshot in
-      let animate = UserDefaults.standard.bool(forKey: "ShouldAnimate")
-      dataSource.applySnapshot(snapshot, animatingDifferences: animate)
+      dataSource.applySnapshot(snapshot, animatingDifferences: shouldAnimate)
     })
   }
 
@@ -99,3 +108,6 @@ extension MasterViewController {
     scrollableOutlineView.outlineView.collapseItem(nil, collapseChildren: true)
   }
 }
+
+/// Returns true if the checkbox is set.
+private var shouldAnimate: Bool { UserDefaults.standard.bool(forKey: "ShouldAnimate") }

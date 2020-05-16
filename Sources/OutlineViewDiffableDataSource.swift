@@ -10,15 +10,39 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
   private weak var outlineView: NSOutlineView?
 
   /// Re-targeting API for drag-n-drop.
-  public enum ProposedDrop<Item> {
-    case denied
-    case onItem(Item, NSDragOperation)
-    case beforeItem(Item, NSDragOperation)
-    case afterItem(Item, NSDragOperation)
+  public struct ProposedDrop<Item> {
+
+    /// Dropping type.
+    public enum `Type` {
+      case on, before, after
+    }
+
+    /// Dropping type.
+    public var type: Type
+
+    /// Target item.
+    public var targetItem: Item
+
+    /// Items being dragged.
+    public var draggedItems: [Item]
+
+    /// Proposed operation.
+    public var operation: NSDragOperation
+
+    /// Creates a new item drag-n-drop “proposal”.
+    public init(type: Type, targetItem: Item, draggedItems: [Item], operation: NSDragOperation) {
+      self.type = type
+      self.targetItem = targetItem
+      self.draggedItems = draggedItems
+      self.operation = operation
+    }
   }
 
-  /// Used for drag-n-drop validation, default implementation returns `.denied` by default which means “cannot drop”.
-  public var canDropHandler: (_ draggedItems: [Item], _ proposedDrop: ProposedDrop<Item>) -> ProposedDrop<Item> = { _, _ in .denied }
+  /// Used for drag-n-drop validation, default implementation returns `nil` to deny dropping.
+  public var validateDropHandler: (_ sender: OutlineViewDiffableDataSource<Item>, _ drop: ProposedDrop<Item>) -> ProposedDrop<Item>? = { _, _ in nil }
+
+  /// Used for drag-n-drop completion, default implementation returns `false` to ignore dropping.
+  public var acceptDropHandler: (_ sender: OutlineViewDiffableDataSource<Item>, _ drop: ProposedDrop<Item>) -> Bool = { _, _ in false }
 
   /// Creates a new data source as well as a delegate for the given outline view.
   /// - Parameter outlineView: Outline view without a data source and without a delegate.
@@ -91,64 +115,39 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
     _ outlineView: NSOutlineView, validateDrop info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int
   ) -> NSDragOperation {
 
-    // Retrieve dragged items
-    guard let pasteboardItems = info.draggingPasteboard.pasteboardItems,
-      pasteboardItems.isEmpty == false else { return [] }
-    let draggedItems: [Item] = pasteboardItems.compactMap { pasteboardItem in
-      guard let propertyList = pasteboardItem.propertyList(forType: .itemID),
-        let id = Item.idFromPropertyList(propertyList),
-        let item = diffableSnapshot.itemWithIdentifier(id) else { return nil }
-      return item
-    }
-    guard draggedItems.count == pasteboardItems.count else { return [] }
-
-    // Prepare proposed drop operation
-    let proposedDrop: ProposedDrop<Item> = {
-
-      // Drop on the item
-      let parentItem = item as? Item
-      if index == NSOutlineViewDropOnItemIndex {
-        return parentItem.map { .onItem($0, .every) } ?? .denied
-      }
-
-      // Drop into the item
-      let childItems = diffableSnapshot.childrenOfItem(parentItem)
-      guard childItems.isEmpty == false else { return .denied }
-
-      // Use “before” or “after” depending on index
-      return index == 0 ? .beforeItem(childItems[0], .every) : .afterItem(childItems[index - 1], .every)
-    }()
-
-    // Pass decision to the client handler
-    switch canDropHandler(draggedItems, proposedDrop) {
+    // Calculate proposed change if allowed and take decision from the client handler
+    guard let drop = proposedDrop(using: info, proposedItem: item, proposedChildIndex: index).flatMap({ validateDropHandler(self, $0) }) else { return [] }
+    switch drop.type {
 
     // Re-target drop on item
-    case let .onItem(targetItem, operation):
-      if operation.isEmpty == false {
-        outlineView.setDropItem(targetItem, dropChildIndex: NSOutlineViewDropOnItemIndex)
+    case .on:
+      if drop.operation.isEmpty == false {
+        outlineView.setDropItem(drop.targetItem, dropChildIndex: NSOutlineViewDropOnItemIndex)
       }
-      return operation
+      return drop.operation
 
     // Re-target drop before item
-    case let .beforeItem(item, operation):
-      if operation.isEmpty == false, let childIndex = diffableSnapshot.indexOfItem(item) {
-        let parentItem = diffableSnapshot.parentOfItem(item)
+    case .before:
+      if drop.operation.isEmpty == false, let childIndex = diffableSnapshot.indexOfItem(drop.targetItem) {
+        let parentItem = diffableSnapshot.parentOfItem(drop.targetItem)
         outlineView.setDropItem(parentItem, dropChildIndex: childIndex)
       }
-      return operation
+      return drop.operation
 
     // Re-target drop after item
-    case let .afterItem(item, operation):
-      if operation.isEmpty == false, let childIndex = diffableSnapshot.indexOfItem(item) {
-        let parentItem = diffableSnapshot.parentOfItem(item)
+    case .after:
+      if drop.operation.isEmpty == false, let childIndex = diffableSnapshot.indexOfItem(drop.targetItem) {
+        let parentItem = diffableSnapshot.parentOfItem(drop.targetItem)
         outlineView.setDropItem(parentItem, dropChildIndex: childIndex + 1)
       }
-      return operation
-
-    // Dropping is denied
-    case .denied:
-      return []
+      return drop.operation
     }
+  }
+
+  /// Accepts drag-n-drop after validation.
+  public func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
+    guard let drop = proposedDrop(using: info, proposedItem: item, proposedChildIndex: index) else { return false }
+    return acceptDropHandler(self, drop)
   }
 
   // MARK: - NSOutlineViewDelegate
@@ -284,6 +283,39 @@ public extension OutlineViewDiffableDataSource {
 }
 
 // MARK: - Private API
+
+private extension OutlineViewDiffableDataSource {
+
+  /// Calculates proposed drop for the given input.
+  func proposedDrop(using info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> ProposedDrop<Item>? {
+    guard let pasteboardItems = info.draggingPasteboard.pasteboardItems,
+      pasteboardItems.isEmpty == false else { return nil }
+
+    // Retrieve dragged items
+    let draggedItems: [Item] = pasteboardItems.compactMap { pasteboardItem in
+      guard let propertyList = pasteboardItem.propertyList(forType: .itemID),
+        let id = Item.idFromPropertyList(propertyList),
+        let item = diffableSnapshot.itemWithIdentifier(id) else { return nil }
+      return item
+    }
+    guard draggedItems.count == pasteboardItems.count else { return nil }
+
+    // Drop on the item
+    let parentItem = item as? Item
+    if index == NSOutlineViewDropOnItemIndex {
+      return parentItem.map { .init(type: .on, targetItem: $0, draggedItems: draggedItems, operation: info.draggingSourceOperationMask) }
+    }
+
+    // Drop into the item
+    let childItems = diffableSnapshot.childrenOfItem(parentItem)
+    guard childItems.isEmpty == false else { return nil }
+
+    // Use “before” or “after” depending on index
+    return index > 0
+      ? .init(type: .after, targetItem: childItems[index - 1], draggedItems: draggedItems, operation: info.draggingSourceOperationMask)
+      : .init(type: .before, targetItem: childItems[index], draggedItems: draggedItems, operation: info.draggingSourceOperationMask)
+  }
+}
 
 private extension NSPasteboard.PasteboardType {
 
