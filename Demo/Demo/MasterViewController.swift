@@ -33,7 +33,18 @@ final class MasterViewController: NSViewController {
   }()
 
   /// Diffable data source similar to `NSCollectionViewDiffableDataSource`.
-  private lazy var dataSource: OutlineViewDiffableDataSource<MasterItem> = .init(outlineView: scrollableOutlineView.outlineView)
+  private lazy var dataSource: OutlineViewDiffableDataSource<MasterItem> = {
+    let source = OutlineViewDiffableDataSource<MasterItem>(outlineView: scrollableOutlineView.outlineView)
+    source.canDropHandler = { draggedItems, proposedDrop in
+      switch proposedDrop {
+      case .onItem(let targetItem, _), .beforeItem(let targetItem, _), .afterItem(let targetItem, _):
+        return draggedItems.allSatisfy { $0.id != targetItem.id } ? proposedDrop : .denied
+      case .denied:
+        return .denied
+      }
+    }
+    return source
+  }()
 }
 
 // MARK: -

@@ -2,7 +2,7 @@ import AppKit
 import OutlineViewDiffableDataSource
 
 /// Sidebar iitems.
-struct MasterItem: OutlineViewItem {
+class MasterItem: OutlineViewItem, Codable {
 
   /// Unique identifier of the item.
   let id: String
@@ -23,19 +23,14 @@ struct MasterItem: OutlineViewItem {
   func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type? {
     MasterCellView.self
   }
-
-  /// Enables drag-n-drop.
-  var pasteboardRepresentation: NSPasteboardItem? {
-    NSPasteboardItem(pasteboardPropertyList: id, ofType: .string)
-  }
 }
 
-// MARK: - Internal API
+// MARK: -
 
 extension MasterItem {
 
   /// Creates a new item an identifier inherited from the title.
-  init(title: String) {
+  convenience init(title: String) {
     self.init(id: title.lowercased().replacingOccurrences(of: " ", with: "-"), title: title)
   }
 }

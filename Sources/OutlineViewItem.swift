@@ -1,7 +1,7 @@
 import AppKit
 
-/// View model for the outline view row.
-public protocol OutlineViewItem: Identifiable {
+/// Outline view cannot work with structs, identifiers are necessary for diffing and diagnostics, hashing is necessary for supporting drag-n-drop and expand-collapse.
+public protocol OutlineViewItem: class, Identifiable, Hashable {
 
   /// Used to allow or deny selection for this item.
   var isSelectable: Bool { get }
@@ -19,8 +19,11 @@ public protocol OutlineViewItem: Identifiable {
   /// Return true to enable drag-n-drop.
   static var allowsDragging: Bool { get }
 
-  /// Returns pasteboard representation for the outline view.
-  var pasteboardRepresentation: NSPasteboardItem? { get }
+  /// Returns ID representation for the Pasteboard item.
+  var idPropertyList: Any? { get }
+
+  /// Optional id from the Pasteboard.
+  static func idFromPropertyList(_ propertyList: Any) -> ID?
 }
 
 // MARK: -
@@ -42,6 +45,15 @@ public extension OutlineViewItem {
   /// Disable drag-n-drop by default.
   static var allowsDragging: Bool { false }
 
-  /// Items cannot be dragged by default.
-  var pasteboardRepresentation: NSPasteboardItem? { nil }
+  /// All items can be dragged by default.
+  var idPropertyList: Any? { id }
+
+  /// All items can be dropped by default.
+  static func idFromPropertyList(_ propertyList: Any) -> ID? { propertyList as? ID }
+
+  /// Compares by id by default.
+  static func == (lhs: Self, rhs: Self) -> Bool { lhs.id == rhs.id }
+
+  /// Hashes only id by default.
+  func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
