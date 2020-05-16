@@ -42,6 +42,7 @@ extension MainViewController {
     super.viewDidLoad()
 
     title = ProcessInfo.processInfo.processName
+    view.frame.size = NSMakeSize(640, 480)
 
     masterViewController.selectionPublisher.sink { [detailViewController] in
       detailViewController.representedObject = $0
