@@ -13,6 +13,9 @@ class MasterOutlineViewItem: NSObject, OutlineViewItem {
   /// Returns a private cell view type.
   func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { MasterCellView.self }
 
+  /// Necessary for sets.
+  override var hash: Int { title.hash }
+
   /// Necessary for outline view reloading.
   override func isEqual(_ object: Any?) -> Bool {
     guard let masterItem = object as? MasterOutlineViewItem else { return false }

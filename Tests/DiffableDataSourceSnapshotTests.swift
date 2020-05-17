@@ -4,13 +4,14 @@ import OutlineViewDiffableDataSource
 private class SnapshotItem: NSObject, OutlineViewItem {
   let id: String
   init(id: String) { self.id = id }
+  override var hash: Int { id.hash }
   override func isEqual(_ object: Any?) -> Bool {
     guard let snapshotItem = object as? SnapshotItem else { return false }
     return snapshotItem.id == id
   }
 }
 
-extension Collection where Element == AnyObject {
+extension Collection where Element == NSObject {
   func snapshotItemIds() -> [String] {
     compactMap { $0 as? SnapshotItem }.map(\.id)
   }
@@ -36,6 +37,25 @@ final class DiffableDataSourceSnapshotTests: XCTestCase {
     // THEN: Equality does not work
     XCTAssertNotEqual(a1, b)
     XCTAssertNotEqual(a2, b)
+  }
+
+  func testContainment() {
+
+    // GIVEN: Equal items
+    let a1 = SnapshotItem(id: "a")
+    let a2 = SnapshotItem(id: "a")
+
+    // WHEN: They are added to snapshot
+    var snapshot: DiffableDataSourceSnapshot = .init()
+    XCTAssertFalse(snapshot.appendItems([a1, a2]))
+    XCTAssertTrue(snapshot.appendItems([a1]))
+    XCTAssertFalse(snapshot.appendItems([a2]))
+
+    // THEN: Only one item is added for real
+    XCTAssertEqual(snapshot.numberOfItems, 1)
+
+    // THEN: Another is counted as added
+    XCTAssertTrue(snapshot.containsItem(a2))
   }
 
   func testEmptyState() {

@@ -24,6 +24,9 @@ public final class GroupOutlineViewItem: NSObject, OutlineViewItem {
   /// Returns an appropriate cell view type.
   public func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { GroupTableCellView.self }
 
+  /// Necessary for sets.
+  public override var hash: Int { title.hash }
+
   /// Necessary for outline view reloading.
   public override func isEqual(_ object: Any?) -> Bool {
     guard let groupItem = object as? GroupOutlineViewItem else { return false }

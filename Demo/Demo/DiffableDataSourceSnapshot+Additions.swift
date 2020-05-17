@@ -10,14 +10,32 @@ extension DiffableDataSourceSnapshot {
       let titles = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.isEmpty == false }
       switch titles.count {
       case 1:
-        let groupItem: NSObject = selectedItem == nil ? GroupOutlineViewItem(id: titles[0], title: titles[0]) : MasterOutlineViewItem(title: titles[0])
-        if containsItem(groupItem) == false {
-          appendItems([groupItem], into: selectedItem)
+        let groupItem = GroupOutlineViewItem(id: titles[0], title: titles[0])
+        let masterItem = MasterOutlineViewItem(title: titles[0])
+        if containsItem(groupItem) == false, containsItem(masterItem) == false {
+          if selectedItem == nil {
+            appendItems([groupItem])
+          } else {
+            appendItems([masterItem], into: selectedItem)
+          }
         }
       case 2:
-        let parentItem: NSObject = selectedItem == nil ? GroupOutlineViewItem(id: titles[0], title: titles[0]) : MasterOutlineViewItem(title: titles[0])
-        if containsItem(parentItem) == false {
-          appendItems([parentItem], into: selectedItem)
+        let parentGroupItem = GroupOutlineViewItem(id: titles[0], title: titles[0])
+        let parentMasterItem = MasterOutlineViewItem(title: titles[0])
+        var parentItem: NSObject?
+        if containsItem(parentGroupItem) == false, containsItem(parentMasterItem) == false {
+          if selectedItem == nil {
+            appendItems([parentGroupItem])
+            parentItem = parentGroupItem
+
+          } else {
+            appendItems([parentMasterItem], into: selectedItem)
+            parentItem = parentMasterItem
+          }
+        } else if containsItem(parentGroupItem) {
+          parentItem = parentGroupItem
+        } else if containsItem(parentMasterItem) {
+          parentItem = parentMasterItem
         }
         let childItem = MasterOutlineViewItem(title: titles[1])
         if containsItem(childItem) == false {

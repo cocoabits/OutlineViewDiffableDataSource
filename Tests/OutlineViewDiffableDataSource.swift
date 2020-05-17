@@ -3,11 +3,12 @@ import OutlineViewDiffableDataSource
 
 final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
-  private class OutlineViewItem: NSObject, OutlineViewItem {
+  private class OutlineItem: NSObject, OutlineViewItem {
     let title: String
     init(title: String) { self.title = title }
+    override var hash: Int { title.hash }
     override func isEqual(_ object: Any?) -> Bool {
-      guard let outlintItem = object as? OutlineViewItem else { return false }
+      guard let outlintItem = object as? OutlineItem else { return false }
       return outlintItem.title == title
     }
   }
@@ -36,9 +37,9 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
   func testRootItems() {
 
     // GIVEN: Some items
-    let a = OutlineViewItem(title: "a")
-    let b = OutlineViewItem(title: "b")
-    let c = OutlineViewItem(title: "c")
+    let a = OutlineItem(title: "a")
+    let b = OutlineItem(title: "b")
+    let c = OutlineItem(title: "c")
 
     // WHEN: They are added to the snapshot
     let dataSource: OutlineViewDiffableDataSource = .init(outlineView: outlineView)
@@ -53,13 +54,13 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
   func testAnimatedInsertionsAndDeletions() {
 
     // GIVEN: Some items
-    let a = OutlineViewItem(title: "a")
-    let a1 = OutlineViewItem(title: "a1")
-    let a2 = OutlineViewItem(title: "a2")
-    let a3 = OutlineViewItem(title: "a3")
-    let b = OutlineViewItem(title: "b")
-    let b1 = OutlineViewItem(title: "b1")
-    let b2 = OutlineViewItem(title: "b2")
+    let a = OutlineItem(title: "a")
+    let a1 = OutlineItem(title: "a1")
+    let a2 = OutlineItem(title: "a2")
+    let a3 = OutlineItem(title: "a3")
+    let b = OutlineItem(title: "b")
+    let b1 = OutlineItem(title: "b1")
+    let b2 = OutlineItem(title: "b2")
 
     // GIVEN: Some items in the outline view
     let dataSource: OutlineViewDiffableDataSource = .init(outlineView: outlineView)
@@ -85,20 +86,20 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
     // THEN: Outline view is updated
     outlineView.expandItem(nil, expandChildren: true)
     let expandedItems = (0 ..< outlineView.numberOfRows)
-      .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineViewItem }
+      .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineItem }
     XCTAssertEqual(expandedItems.map(\.title), [a, a2, a3, b, b1].map(\.title))
   }
 
   func testAnimatedMoves() {
 
     // GIVEN: Some items
-    let a = OutlineViewItem(title: "a")
-    let a1 = OutlineViewItem(title: "a1")
-    let a2 = OutlineViewItem(title: "a2")
-    let a3 = OutlineViewItem(title: "a3")
-    let b = OutlineViewItem(title: "b")
-    let b1 = OutlineViewItem(title: "b1")
-    let b2 = OutlineViewItem(title: "b2")
+    let a = OutlineItem(title: "a")
+    let a1 = OutlineItem(title: "a1")
+    let a2 = OutlineItem(title: "a2")
+    let a3 = OutlineItem(title: "a3")
+    let b = OutlineItem(title: "b")
+    let b1 = OutlineItem(title: "b1")
+    let b2 = OutlineItem(title: "b2")
 
     // GIVEN: Thes items in the outline view
     let dataSource: OutlineViewDiffableDataSource = .init(outlineView: outlineView)
@@ -123,7 +124,7 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
     // THEN: Outline view is updated
     outlineView.expandItem(nil, expandChildren: true)
     let expandedItems = (0 ..< outlineView.numberOfRows)
-      .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineViewItem }
+      .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineItem }
     XCTAssertEqual(expandedItems.map(\.title), [a, a1, a2, a3, b, b1, b2].map(\.title))
   }
 }

@@ -6,9 +6,6 @@ public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, N
   /// Shortcut for outline view objects.
   public typealias Item = DiffableDataSourceSnapshot.Item
 
-  /// Shortcut for outline view objects.
-  private typealias ItemID = DiffableDataSourceSnapshot.ItemID
-
   /// Tree with data.
   private var diffableSnapshot: DiffableDataSourceSnapshot
 
@@ -94,7 +91,8 @@ public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, N
 
   /// Enables dragging for items which return Pasteboard representation.
   public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-    return NSPasteboardItem(pasteboardPropertyList: item, ofType: .itemID)
+    guard let item = item as? Item, let itemId = diffableSnapshot.idForItem(item) else { return nil }
+    return NSPasteboardItem(pasteboardPropertyList: itemId.uuidString, ofType: .itemID)
   }
 
   /// This override is necessary to disable special mouse down behavior in the outline view.
@@ -228,9 +226,9 @@ public extension OutlineViewDiffableDataSource {
     }
 
     // Calculate changes
-    let oldIndexedItemIdentifiers = oldSnapshot.indexedItemIds()
-    let newIndexedItemIdentifiers = newSnapshot.indexedItemIds()
-    let difference = newIndexedItemIdentifiers.difference(from: oldIndexedItemIdentifiers)
+    let oldIndexedIds = oldSnapshot.indexedIds()
+    let newIndexedIds = newSnapshot.indexedIds()
+    let difference = newIndexedIds.difference(from: oldIndexedIds)
     let differenceWithMoves = difference.inferringMoves()
 
     // Apply changes changes
@@ -241,17 +239,17 @@ public extension OutlineViewDiffableDataSource {
         case .insert(_, let inserted, let indexBefore):
           if let indexBefore = indexBefore {
             // Move outline view item
-            let oldIndexedItemId = oldIndexedItemIdentifiers[indexBefore]
-            let oldParent = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemWithId(_:))
+            let oldIndexedItemId = oldIndexedIds[indexBefore]
+            let oldParent = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemForId)
             let oldIndex = oldIndexedItemId.itemPath.last.unsafelyUnwrapped
-            let newParent = inserted.parentId.flatMap(newSnapshot.itemWithId(_:))
+            let newParent = inserted.parentId.flatMap(newSnapshot.itemForId)
             let newIndex = inserted.itemPath.last.unsafelyUnwrapped
             outlineView?.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
 
           } else {
             // Insert outline view item
             let insertionIndexes = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
-            let parentItem = inserted.parentId.flatMap(newSnapshot.itemWithId(_:))
+            let parentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
             outlineView?.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
           }
 
@@ -259,7 +257,7 @@ public extension OutlineViewDiffableDataSource {
           if indexAfter == nil {
             // Delete outline view item
             let deletionIndexes = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
-            let oldParentItem = before.parentId.flatMap(oldSnapshot.itemWithId(_:))
+            let oldParentItem = before.parentId.flatMap(oldSnapshot.itemForId)
             outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
           }
         }
@@ -295,10 +293,9 @@ private extension OutlineViewDiffableDataSource {
 
     // Retrieve dragged items
     let draggedItems: [Item] = pasteboardItems.compactMap { pasteboardItem in
-      guard let propertyList = pasteboardItem.propertyList(forType: .itemID),
-        let id = propertyList as? ObjectIdentifier,
-        let item = diffableSnapshot.itemWithId(id) else { return nil }
-      return item
+      guard let propertyList = pasteboardItem.propertyList(forType: .itemID) as? String,
+        let itemId = DiffableDataSourceSnapshot.ItemID(uuidString: propertyList) else { return nil }
+      return diffableSnapshot.itemForId(itemId)
     }
     guard draggedItems.count == pasteboardItems.count else { return nil }
 
