@@ -1,7 +1,7 @@
 import AppKit
 
 /// Default root item with buttons ‘Show’ and ‘Hide’, not intended for subclassing.
-public final class GroupOutlineViewItem: OutlineViewItem {
+public final class GroupOutlineViewItem: OutlineViewItem, Hashable {
 
   /// Unique identifier for diffing.
   public let id: String
@@ -9,8 +9,11 @@ public final class GroupOutlineViewItem: OutlineViewItem {
   /// Display string.
   public let title: String
 
-  /// Enable-drag-n-drop by default.
-  public static let allowsDragging: Bool = true
+  /// Show as Group.
+  public let isGroup: Bool = true
+
+  /// Deny selection.
+  public let isSelectable: Bool = false
 
   /// Creates a “standard” root item for the sidebar.
   public init(id: String, title: String) {
@@ -20,6 +23,12 @@ public final class GroupOutlineViewItem: OutlineViewItem {
 
   /// Returns an appropriate cell view type.
   public func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { GroupTableCellView.self }
+
+  /// Hashable 1.
+  public static func == (lhs: GroupOutlineViewItem, rhs: GroupOutlineViewItem) -> Bool { lhs.id == rhs.id }
+
+  /// Hashable 2.
+  public func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
 // MARK: - Private API

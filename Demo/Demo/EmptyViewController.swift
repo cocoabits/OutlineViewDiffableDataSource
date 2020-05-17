@@ -17,10 +17,10 @@ final class EmptyViewController: NSViewController {
   }()
 
   /// Sidebar data source.
-  private var snapshotBinding: Binding<DiffableDataSourceSnapshot<MasterItem>>
+  private var snapshotBinding: Binding<DiffableDataSourceSnapshot>
 
   /// Creates a new editor for sidebar contents.
-  init(binding: Binding<DiffableDataSourceSnapshot<MasterItem>>) {
+  init(binding: Binding<DiffableDataSourceSnapshot>) {
     self.snapshotBinding = binding
 
     super.init(nibName: nil, bundle: nil)
@@ -77,33 +77,8 @@ private extension EmptyViewController {
   /// Replaces the whole tree with the given contents.
   @IBAction func fillSidebar(_ sender: Any?) {
     guard let textView = scrollableEditor.documentView as? NSTextView else { return }
-    var snapshot: DiffableDataSourceSnapshot<MasterItem> = .init()
-    let lines = textView.string.components(separatedBy: .newlines)
-    for line in lines {
-      let titles = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.isEmpty == false }
-      let id: (String) -> String = { $0.lowercased().replacingOccurrences(of: " ", with: "-") }
-      switch titles.count {
-      case 1:
-        let groupTitle = titles[0]
-        let groupId = id(groupTitle)
-        if snapshot.itemWithIdentifier(groupId) == nil {
-          snapshot.appendItems([MasterItem(id: groupId, title: groupTitle)])
-        }
-      case 2:
-        let parentTitle = titles[0]
-        let parentId = id(parentTitle)
-        if snapshot.itemWithIdentifier(parentId) == nil {
-          snapshot.appendItems([MasterItem(id: parentId, title: parentTitle)])
-        }
-        let childTitle = titles[1]
-        let childId = id(childTitle)
-        if snapshot.itemWithIdentifier(childId) == nil {
-          snapshot.appendItems([MasterItem(id: childId, title: childTitle)], into: snapshot.itemWithIdentifier(parentId))
-        }
-      default:
-        continue
-      }
-    }
+    var snapshot: DiffableDataSourceSnapshot = .init()
+    snapshot.fillItem(nil, with: textView.string)
     snapshotBinding.wrappedValue = snapshot
   }
 
@@ -118,3 +93,4 @@ private extension EmptyViewController {
     textView.string = items.joined(separator: "\n")
   }
 }
+

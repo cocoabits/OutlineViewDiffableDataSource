@@ -1,16 +1,22 @@
 import AppKit
 
 /// Offers a diffable interface for providing content for `NSOutlineView`.  It automatically performs insertions, deletions, and moves necessary to transition from one model-state snapshot to another.
-public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
+public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
+
+  /// Shortcut for outline view objects.
+  public typealias Item = DiffableDataSourceSnapshot.Item
+
+  /// Shortcut for outline view objects.
+  private typealias ItemID = DiffableDataSourceSnapshot.ItemID
 
   /// Tree with data.
-  private var diffableSnapshot: DiffableDataSourceSnapshot<Item>
+  private var diffableSnapshot: DiffableDataSourceSnapshot
 
   /// Associated outline view.
   private weak var outlineView: NSOutlineView?
 
   /// Re-targeting API for drag-n-drop.
-  public struct ProposedDrop<Item> {
+  public struct ProposedDrop {
 
     /// Dropping type.
     public enum `Type` {
@@ -38,11 +44,14 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
     }
   }
 
-  /// Used for drag-n-drop validation, default implementation returns `nil` to deny dropping.
-  public var validateDropHandler: (_ sender: OutlineViewDiffableDataSource<Item>, _ drop: ProposedDrop<Item>) -> ProposedDrop<Item>? = { _, _ in nil }
+  /// Callbacks for drag-n-drop.
+  public typealias DraggingHandlers = (
+    validateDrop: (_ sender: OutlineViewDiffableDataSource, _ drop: ProposedDrop) -> ProposedDrop?,
+    acceptDrop: (_ sender: OutlineViewDiffableDataSource, _ drop: ProposedDrop) -> Bool
+  )
 
-  /// Used for drag-n-drop completion, default implementation returns `false` to ignore dropping.
-  public var acceptDropHandler: (_ sender: OutlineViewDiffableDataSource<Item>, _ drop: ProposedDrop<Item>) -> Bool = { _, _ in false }
+  /// Assign non-nil value to enable drag-n-drop.
+  public var draggingHandlers: DraggingHandlers?
 
   /// Creates a new data source as well as a delegate for the given outline view.
   /// - Parameter outlineView: Outline view without a data source and without a delegate.
@@ -69,41 +78,29 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
 
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-    diffableSnapshot.numberOfItems(in: item as? Item)
+    diffableSnapshot.numberOfItems(in: item as Item?)
   }
 
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-    diffableSnapshot.childrenOfItem(item as? Item)[index]
+    diffableSnapshot.childrenOfItem(item as Item?)[index]
   }
 
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
-    guard let item = item as? Item else { return true }
+    guard let item = item as? OutlineViewItem else { return true }
     return item.isExpandable
-  }
-
-  /// Uses diffable snapshot.
-  public func outlineView(_ outlineView: NSOutlineView, itemForPersistentObject object: Any) -> Any? {
-    guard let identifier = object as? Item.ID else { return nil }
-    return diffableSnapshot.itemWithIdentifier(identifier)
-  }
-
-  /// Uses diffable snapshot.
-  public func outlineView(_ outlineView: NSOutlineView, persistentObjectForItem item: Any?) -> Any? {
-    guard let item = item as? Item else { return nil }
-    return item.id
   }
 
   /// Enables dragging for items which return Pasteboard representation.
   public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-    guard let item = item as? Item, let propertyList = item.idPropertyList else { return nil }
-    return NSPasteboardItem(pasteboardPropertyList: propertyList, ofType: .itemID)
+    let itemID = ItemID(item as Item)
+    return NSPasteboardItem(pasteboardPropertyList: itemID, ofType: .itemID)
   }
 
   /// This override is necessary to disable special mouse down behavior in the outline view.
   public override func responds(to aSelector: Selector?) -> Bool {
-    if Item.allowsDragging == false && aSelector == #selector(outlineView(_:pasteboardWriterForItem:)) {
+    if draggingHandlers == nil && aSelector == #selector(outlineView(_:pasteboardWriterForItem:)) {
       return false
     } else {
       return super.responds(to: aSelector)
@@ -116,7 +113,8 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
   ) -> NSDragOperation {
 
     // Calculate proposed change if allowed and take decision from the client handler
-    guard let drop = proposedDrop(using: info, proposedItem: item, proposedChildIndex: index).flatMap({ validateDropHandler(self, $0) }) else { return [] }
+    guard let proposedDrop = proposedDrop(using: info, proposedItem: item, proposedChildIndex: index),
+      let handlers = draggingHandlers, let drop = handlers.validateDrop(self, proposedDrop) else { return [] }
     switch drop.type {
 
     // Re-target drop on item
@@ -146,15 +144,21 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
 
   /// Accepts drag-n-drop after validation.
   public func outlineView(_ outlineView: NSOutlineView, acceptDrop info: NSDraggingInfo, item: Any?, childIndex index: Int) -> Bool {
-    guard let drop = proposedDrop(using: info, proposedItem: item, proposedChildIndex: index) else { return false }
-    return acceptDropHandler(self, drop)
+    guard let drop = proposedDrop(using: info, proposedItem: item, proposedChildIndex: index), let handlers = draggingHandlers else { return false }
+    return handlers.acceptDrop(self, drop)
   }
 
   // MARK: - NSOutlineViewDelegate
 
+  /// Enables special appearance for group items.
+  public func outlineView(_ outlineView: NSOutlineView, isGroupItem item: Any) -> Bool {
+    guard let item = item as? OutlineViewItem else { return false }
+    return item.isGroup
+  }
+
   /// Creates a cell view for the given item,
   public func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
-    guard let item = item as? Item else { return nil }
+    guard let item = item as? OutlineViewItem else { return nil }
     let cellViewType = item.cellViewType(for: tableColumn)
     let cellViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(cellViewType))
     let cachedCellView = outlineView.makeView(withIdentifier: cellViewTypeIdentifier, owner: self)
@@ -170,14 +174,14 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
   /// Filters selectable items.
   public func outlineView(_ outlineView: NSOutlineView, selectionIndexesForProposedSelection proposedSelectionIndexes: IndexSet) -> IndexSet {
     proposedSelectionIndexes.filteredIndexSet {
-      guard let item = outlineView.item(atRow: $0) as? Item else { return false }
+      guard let item = outlineView.item(atRow: $0) as? OutlineViewItem else { return false }
       return item.isSelectable
     }
   }
 
   /// Creates a row view for the given item,
   public func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
-    guard let item = item as? Item else { return nil }
+    guard let item = item as? OutlineViewItem else { return nil }
     let rowViewType = item.rowViewType ?? NSTableRowView.self
     let rowViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(rowViewType))
     let cachedRowView = outlineView.makeView(withIdentifier: rowViewTypeIdentifier, owner: self)
@@ -195,7 +199,7 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
 public extension OutlineViewDiffableDataSource {
 
   /// Returns current state of the data source.
-  func snapshot() -> DiffableDataSourceSnapshot<Item> {
+  func snapshot() -> DiffableDataSourceSnapshot {
     diffableSnapshot
   }
 
@@ -203,7 +207,7 @@ public extension OutlineViewDiffableDataSource {
   /// - Parameter snapshot: Snapshot with new data.
   /// - Parameter animatingDifferences: Pass false to disable animations.
   /// - Parameter completionHandler: Called asynchronously in the main thread when the new snapshot is applied.
-  func applySnapshot(_ snapshot: DiffableDataSourceSnapshot<Item>, animatingDifferences: Bool, completionHandler: (() -> Void)? = nil) {
+  func applySnapshot(_ snapshot: DiffableDataSourceSnapshot, animatingDifferences: Bool, completionHandler: (() -> Void)? = nil) {
 
     // Source and Destination
     let oldSnapshot = diffableSnapshot
@@ -225,40 +229,39 @@ public extension OutlineViewDiffableDataSource {
     }
 
     // Calculate changes
-    let oldIndexedItemIdentifiers = oldSnapshot.indexedItemIdentifiers()
-    let newIndexedItemIdentifiers = newSnapshot.indexedItemIdentifiers()
+    let oldIndexedItemIdentifiers = oldSnapshot.indexedItemIds()
+    let newIndexedItemIdentifiers = newSnapshot.indexedItemIds()
     let difference = newIndexedItemIdentifiers.difference(from: oldIndexedItemIdentifiers)
     let differenceWithMoves = difference.inferringMoves()
 
     // Apply changes changes
     func apply() {
-      guard let outlineView = outlineView else { return }
       differenceWithMoves.forEach {
         switch $0 {
 
         case .insert(_, let inserted, let indexBefore):
           if let indexBefore = indexBefore {
             // Move outline view item
-            let oldIndexedItemIdentifier = oldIndexedItemIdentifiers[indexBefore]
-            let oldParent = oldIndexedItemIdentifier.parentIdentifier.flatMap(oldSnapshot.itemWithIdentifier(_:))
-            let oldIndex = oldIndexedItemIdentifier.itemPath.last.unsafelyUnwrapped
-            let newParent = inserted.parentIdentifier.flatMap(newSnapshot.itemWithIdentifier(_:))
+            let oldIndexedItemId = oldIndexedItemIdentifiers[indexBefore]
+            let oldParent = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemWithId(_:))
+            let oldIndex = oldIndexedItemId.itemPath.last.unsafelyUnwrapped
+            let newParent = inserted.parentId.flatMap(newSnapshot.itemWithId(_:))
             let newIndex = inserted.itemPath.last.unsafelyUnwrapped
-            outlineView.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
+            outlineView?.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
 
           } else {
             // Insert outline view item
             let insertionIndexes = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
-            let parentItem = inserted.parentIdentifier.flatMap(newSnapshot.itemWithIdentifier(_:))
-            outlineView.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
+            let parentItem = inserted.parentId.flatMap(newSnapshot.itemWithId(_:))
+            outlineView?.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
           }
 
         case .remove(_, let before, let indexAfter):
           if indexAfter == nil {
             // Delete outline view item
             let deletionIndexes = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
-            let oldParentItem = before.parentIdentifier.flatMap(oldSnapshot.itemWithIdentifier(_:))
-            outlineView.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
+            let oldParentItem = before.parentId.flatMap(oldSnapshot.itemWithId(_:))
+            outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
           }
         }
       }
@@ -287,21 +290,21 @@ public extension OutlineViewDiffableDataSource {
 private extension OutlineViewDiffableDataSource {
 
   /// Calculates proposed drop for the given input.
-  func proposedDrop(using info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> ProposedDrop<Item>? {
+  func proposedDrop(using info: NSDraggingInfo, proposedItem item: Any?, proposedChildIndex index: Int) -> ProposedDrop? {
     guard let pasteboardItems = info.draggingPasteboard.pasteboardItems,
       pasteboardItems.isEmpty == false else { return nil }
 
     // Retrieve dragged items
     let draggedItems: [Item] = pasteboardItems.compactMap { pasteboardItem in
       guard let propertyList = pasteboardItem.propertyList(forType: .itemID),
-        let id = Item.idFromPropertyList(propertyList),
-        let item = diffableSnapshot.itemWithIdentifier(id) else { return nil }
+        let id = propertyList as? ObjectIdentifier,
+        let item = diffableSnapshot.itemWithId(id) else { return nil }
       return item
     }
     guard draggedItems.count == pasteboardItems.count else { return nil }
 
     // Drop on the item
-    let parentItem = item as? Item
+    let parentItem = item as? OutlineViewItem
     if index == NSOutlineViewDropOnItemIndex {
       return parentItem.map { .init(type: .on, targetItem: $0, draggedItems: draggedItems, operation: info.draggingSourceOperationMask) }
     }

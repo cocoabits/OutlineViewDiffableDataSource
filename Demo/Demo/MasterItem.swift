@@ -2,25 +2,22 @@ import AppKit
 import OutlineViewDiffableDataSource
 
 /// Sidebar iitems.
-class MasterItem: OutlineViewItem, Codable {
-
-  /// Unique identifier of the item.
-  let id: String
+class MasterItem: OutlineViewItem, Hashable {
 
   /// Visible string.
   let title: String
 
-  /// Enable drag-n-drop.
-  static let allowsDragging: Bool = true
-
   /// Creates a new item ready for insertion into the sidebar.
-  init(id: String, title: String) {
-    self.id = id
-    self.title = title
-  }
+  init(title: String) { self.title = title }
 
   /// Returns a private cell view type.
   func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { MasterCellView.self }
+
+  /// Hashable 1.
+  static func == (lhs: MasterItem, rhs: MasterItem) -> Bool { lhs.title == rhs.title }
+
+  /// Hashable 2.
+  func hash(into hasher: inout Hasher) { hasher.combine(title) }
 }
 
 // MARK: - Private API

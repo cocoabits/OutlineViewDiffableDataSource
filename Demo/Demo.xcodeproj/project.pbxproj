@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		DD5DAEEC2464815E00F220B1 /* MasterItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD5DAEEB2464815E00F220B1 /* MasterItem.swift */; };
+		DD61CF5624717B1D00CA0BE9 /* DiffableDataSourceSnapshot+Additions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD61CF5524717B1D00CA0BE9 /* DiffableDataSourceSnapshot+Additions.swift */; };
 		DDCAB953246475AB00E5AA41 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCAB952246475AB00E5AA41 /* MainViewController.swift */; };
 		DDCAB9552464771600E5AA41 /* MasterViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCAB9542464771600E5AA41 /* MasterViewController.swift */; };
 		DDCAB9572464785700E5AA41 /* DetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDCAB9562464785700E5AA41 /* DetailViewController.swift */; };
@@ -22,6 +23,7 @@
 
 /* Begin PBXFileReference section */
 		DD5DAEEB2464815E00F220B1 /* MasterItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterItem.swift; sourceTree = "<group>"; };
+		DD61CF5524717B1D00CA0BE9 /* DiffableDataSourceSnapshot+Additions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DiffableDataSourceSnapshot+Additions.swift"; sourceTree = "<group>"; };
 		DDCAB952246475AB00E5AA41 /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
 		DDCAB9542464771600E5AA41 /* MasterViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MasterViewController.swift; sourceTree = "<group>"; };
 		DDCAB9562464785700E5AA41 /* DetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewController.swift; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
 				DDCB691F245DDB0000489647 /* Assets.xcassets */,
 				DDCB6925245DDB0000489647 /* Demo.entitlements */,
 				DDCAB9562464785700E5AA41 /* DetailViewController.swift */,
+				DD61CF5524717B1D00CA0BE9 /* DiffableDataSourceSnapshot+Additions.swift */,
 				DDCAB9582464796400E5AA41 /* EmptyViewController.swift */,
 				DDCB6924245DDB0000489647 /* Info.plist */,
 				DDCB6921245DDB0000489647 /* Main.storyboard */,
@@ -170,6 +173,7 @@
 				DDCAB9572464785700E5AA41 /* DetailViewController.swift in Sources */,
 				DDCAB95B24647B7200E5AA41 /* SingleViewController.swift in Sources */,
 				DD5DAEEC2464815E00F220B1 /* MasterItem.swift in Sources */,
+				DD61CF5624717B1D00CA0BE9 /* DiffableDataSourceSnapshot+Additions.swift in Sources */,
 				DDCAB95D24647BBF00E5AA41 /* MultiViewController.swift in Sources */,
 				DDCB691C245DDAFD00489647 /* AppDelegate.swift in Sources */,
 			);

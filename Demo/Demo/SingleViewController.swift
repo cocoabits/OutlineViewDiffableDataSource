@@ -17,10 +17,10 @@ final class SingleViewController: NSViewController {
   }()
 
   /// Sidebar data source.
-  private let snapshotBinding: Binding<DiffableDataSourceSnapshot<MasterItem>>
+  private let snapshotBinding: Binding<DiffableDataSourceSnapshot>
 
   /// Creates a new editor for a single sidebar item.
-  init(binding: Binding<DiffableDataSourceSnapshot<MasterItem>>) {
+  init(binding: Binding<DiffableDataSourceSnapshot>) {
     self.snapshotBinding = binding
 
     super.init(nibName: nil, bundle: nil)
@@ -55,31 +55,10 @@ private extension SingleViewController {
 
   /// Inserts item contents.
   @IBAction func appendItemContents(_ sender: Any?) {
-    guard let textView = scrollableEditor.documentView as? NSTextView else { return }
-    guard let selectedItem = representedObject as? MasterItem else { return }
+    guard let textView = scrollableEditor.documentView as? NSTextView,
+      let selectedItem = representedObject as? MasterItem else { return }
     var snapshot = snapshotBinding.wrappedValue
-    let lines = textView.string.components(separatedBy: .newlines)
-    for line in lines {
-      let items = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }
-        .filter { $0.isEmpty == false }.map { title in
-          MasterItem(id: title.lowercased().replacingOccurrences(of: " ", with: "-"), title: title)
-        }
-      switch items.count {
-      case 1:
-        if snapshot.itemWithIdentifier(items[0].id) == nil {
-          snapshot.appendItems([items[0]], into: selectedItem)
-        }
-      case 2:
-        if snapshot.itemWithIdentifier(items[0].id) == nil {
-          snapshot.appendItems([items[0]], into: selectedItem)
-        }
-        if snapshot.itemWithIdentifier(items[1].id) == nil {
-          snapshot.appendItems([items[1]], into: items[0])
-        }
-      default:
-        continue
-      }
-    }
+    snapshot.fillItem(selectedItem, with: textView.string)
     snapshotBinding.wrappedValue = snapshot
   }
 

@@ -33,13 +33,19 @@ final class MasterViewController: NSViewController {
   }()
 
   /// Diffable data source similar to `NSCollectionViewDiffableDataSource`.
-  private lazy var dataSource: OutlineViewDiffableDataSource<MasterItem> = {
-    let source = OutlineViewDiffableDataSource<MasterItem>(outlineView: scrollableOutlineView.outlineView)
-    source.validateDropHandler = { _, drop in
-      guard drop.operation.contains(.move), drop.draggedItems.allSatisfy({ $0.id != drop.targetItem.id }) else { return nil }
-      return .init(type: drop.type, targetItem: drop.targetItem, draggedItems: drop.draggedItems, operation: .move)
-    }
-    source.acceptDropHandler = { sender, drop in
+  private lazy var dataSource: OutlineViewDiffableDataSource = {
+    let source = OutlineViewDiffableDataSource(outlineView: scrollableOutlineView.outlineView)
+    source.draggingHandlers = OutlineViewDiffableDataSource.DraggingHandlers(validateDrop: { _, drop in
+
+      // Option-, Control- and Command- modifiers are disabled
+      guard drop.operation.contains(.move) else { return nil }
+
+      // Dragging on, before and after self is denied
+      guard drop.draggedItems.allSatisfy({ $0 !== drop.targetItem }) else { return nil }
+
+      return drop
+    }, acceptDrop: { sender, drop in
+
       var snapshot = sender.snapshot()
       snapshot.deleteItems(drop.draggedItems)
       switch drop.type {
@@ -52,7 +58,7 @@ final class MasterViewController: NSViewController {
       }
       sender.applySnapshot(snapshot, animatingDifferences: shouldAnimate)
       return true
-    }
+    })
     return source
   }()
 }
@@ -72,7 +78,7 @@ extension MasterViewController {
 extension MasterViewController {
 
   /// Read-write snapshot of the sidebar data.
-  var snapshotBinding: Binding<DiffableDataSourceSnapshot<MasterItem>> {
+  var snapshotBinding: Binding<DiffableDataSourceSnapshot> {
     .init(get: { [dataSource] in
       dataSource.snapshot()
     }, set: { [dataSource] snapshot in
