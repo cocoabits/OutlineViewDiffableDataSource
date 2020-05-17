@@ -1,11 +1,13 @@
 import XCTest
 import OutlineViewDiffableDataSource
 
-class SnapshotItem: OutlineViewItem, Hashable {
+private class SnapshotItem: NSObject, OutlineViewItem {
   let id: String
   init(id: String) { self.id = id }
-  static func == (lhs: SnapshotItem, rhs: SnapshotItem) -> Bool { lhs.id == rhs.id }
-  func hash(into hasher: inout Hasher) { hasher.combine(id) }
+  override func isEqual(_ object: Any?) -> Bool {
+    guard let snapshotItem = object as? SnapshotItem else { return false }
+    return snapshotItem.id == id
+  }
 }
 
 extension Collection where Element == AnyObject {
@@ -15,6 +17,26 @@ extension Collection where Element == AnyObject {
 }
 
 final class DiffableDataSourceSnapshotTests: XCTestCase {
+
+  func testEqualItems() {
+
+    // GIVEN: Equal items
+    let a1 = SnapshotItem(id: "a")
+    let a2 = SnapshotItem(id: "a")
+
+    // THEN: Equality works
+    XCTAssertEqual(a1, a1)
+    XCTAssertEqual(a1, a2)
+    XCTAssertEqual(a2, a1)
+    XCTAssertEqual(a2, a2)
+
+    // GIVEN: Non-equal item
+    let b = SnapshotItem(id: "b")
+
+    // THEN: Equality does not work
+    XCTAssertNotEqual(a1, b)
+    XCTAssertNotEqual(a2, b)
+  }
 
   func testEmptyState() {
 

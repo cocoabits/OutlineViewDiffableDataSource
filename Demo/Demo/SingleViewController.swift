@@ -56,7 +56,7 @@ private extension SingleViewController {
   /// Inserts item contents.
   @IBAction func appendItemContents(_ sender: Any?) {
     guard let textView = scrollableEditor.documentView as? NSTextView,
-      let selectedItem = representedObject as? MasterItem else { return }
+      let selectedItem = representedObject as? MasterOutlineViewItem else { return }
     var snapshot = snapshotBinding.wrappedValue
     snapshot.fillItem(selectedItem, with: textView.string)
     snapshotBinding.wrappedValue = snapshot
@@ -64,7 +64,7 @@ private extension SingleViewController {
 
   /// Removes selected item.
   @IBAction func removeSelectedItem(_ sender: Any?) {
-    guard let selectedItem = representedObject as? MasterItem else { return }
+    guard let selectedItem = representedObject as? MasterOutlineViewItem else { return }
     var snapshot = snapshotBinding.wrappedValue
     snapshot.deleteItems([selectedItem])
     snapshotBinding.wrappedValue = snapshot

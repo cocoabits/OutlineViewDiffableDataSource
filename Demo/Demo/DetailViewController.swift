@@ -106,7 +106,7 @@ private extension DetailViewController {
   func updateContents() {
     guard isViewLoaded else { return }
 
-    guard let selection = representedObject as? [MasterItem], selection.isEmpty == false else {
+    guard let selection = representedObject as? [MasterOutlineViewItem], selection.isEmpty == false else {
       selectedViewController = emptyViewController
       return
     }

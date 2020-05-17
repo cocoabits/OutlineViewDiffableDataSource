@@ -1,7 +1,7 @@
 import AppKit
 
 /// Default root item with buttons ‘Show’ and ‘Hide’, not intended for subclassing.
-public final class GroupOutlineViewItem: OutlineViewItem, Hashable {
+public final class GroupOutlineViewItem: NSObject, OutlineViewItem {
 
   /// Unique identifier for diffing.
   public let id: String
@@ -24,11 +24,11 @@ public final class GroupOutlineViewItem: OutlineViewItem, Hashable {
   /// Returns an appropriate cell view type.
   public func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { GroupTableCellView.self }
 
-  /// Hashable 1.
-  public static func == (lhs: GroupOutlineViewItem, rhs: GroupOutlineViewItem) -> Bool { lhs.id == rhs.id }
-
-  /// Hashable 2.
-  public func hash(into hasher: inout Hasher) { hasher.combine(id) }
+  /// Necessary for outline view reloading.
+  public override func isEqual(_ object: Any?) -> Bool {
+    guard let groupItem = object as? GroupOutlineViewItem else { return false }
+    return groupItem.id == id
+  }
 }
 
 // MARK: - Private API
@@ -53,9 +53,9 @@ private final class GroupTableCellView: NSTableCellView {
 
     NSLayoutConstraint.activate([
       label.leadingAnchor.constraint(equalTo: self.leadingAnchor, constant: 2),
-      self.trailingAnchor.constraint(equalTo: label.trailingAnchor, constant: 2),
       self.centerYAnchor.constraint(equalTo: label.centerYAnchor, constant: 1),
-      self.heightAnchor.constraint(equalToConstant: 22),
+      self.trailingAnchor.constraint(equalTo: label.trailingAnchor, constant: 2),
+      self.heightAnchor.constraint(equalToConstant: 23),
     ])
   }
 

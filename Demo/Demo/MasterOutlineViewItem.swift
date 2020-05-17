@@ -2,7 +2,7 @@ import AppKit
 import OutlineViewDiffableDataSource
 
 /// Sidebar iitems.
-class MasterItem: OutlineViewItem, Hashable {
+class MasterOutlineViewItem: NSObject, OutlineViewItem {
 
   /// Visible string.
   let title: String
@@ -13,11 +13,11 @@ class MasterItem: OutlineViewItem, Hashable {
   /// Returns a private cell view type.
   func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { MasterCellView.self }
 
-  /// Hashable 1.
-  static func == (lhs: MasterItem, rhs: MasterItem) -> Bool { lhs.title == rhs.title }
-
-  /// Hashable 2.
-  func hash(into hasher: inout Hasher) { hasher.combine(title) }
+  /// Necessary for outline view reloading.
+  override func isEqual(_ object: Any?) -> Bool {
+    guard let masterItem = object as? MasterOutlineViewItem else { return false }
+    return masterItem.title == title
+  }
 }
 
 // MARK: - Private API
@@ -71,7 +71,7 @@ final private class MasterCellView: NSTableCellView {
   /// Retrieves new title from the associated master item.
   override var objectValue: Any? {
     didSet {
-      if let label = textField, let masterItem = objectValue as? MasterItem {
+      if let label = textField, let masterItem = objectValue as? MasterOutlineViewItem {
         label.stringValue = masterItem.title
       }
     }

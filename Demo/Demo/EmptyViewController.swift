@@ -88,7 +88,10 @@ private extension EmptyViewController {
     let snapshot = snapshotBinding.wrappedValue
     var items: [String] = []
     snapshot.enumerateItems { item, parentItem in
-      items.append([parentItem?.title, item.title].compactMap { $0 }.joined(separator: " / "))
+      items.append([
+        (parentItem as? GroupOutlineViewItem)?.title ?? (parentItem as? MasterOutlineViewItem)?.title,
+        (item as? GroupOutlineViewItem)?.title ?? (item as? MasterOutlineViewItem)?.title,
+      ].compactMap { $0 }.joined(separator: " / "))
     }
     textView.string = items.joined(separator: "\n")
   }

@@ -41,7 +41,7 @@ private extension MultiViewController {
 
   /// Removes selected items.
   @IBAction func removeSelectedItems(_ sender: Any?) {
-    guard let selectedItems = representedObject as? [MasterItem] else { return }
+    guard let selectedItems = representedObject as? [MasterOutlineViewItem] else { return }
     var snapshot = snapshotBinding.wrappedValue
     snapshot.deleteItems(selectedItems)
     snapshotBinding.wrappedValue = snapshot

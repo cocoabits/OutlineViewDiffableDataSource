@@ -78,12 +78,12 @@ public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, N
 
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-    diffableSnapshot.numberOfItems(in: item as Item?)
+    diffableSnapshot.numberOfItems(in: item as? Item)
   }
 
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-    diffableSnapshot.childrenOfItem(item as Item?)[index]
+    diffableSnapshot.childrenOfItem(item as? Item)[index]
   }
 
   /// Uses diffable snapshot.
@@ -94,8 +94,7 @@ public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, N
 
   /// Enables dragging for items which return Pasteboard representation.
   public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-    let itemID = ItemID(item as Item)
-    return NSPasteboardItem(pasteboardPropertyList: itemID, ofType: .itemID)
+    return NSPasteboardItem(pasteboardPropertyList: item, ofType: .itemID)
   }
 
   /// This override is necessary to disable special mouse down behavior in the outline view.
@@ -304,7 +303,7 @@ private extension OutlineViewDiffableDataSource {
     guard draggedItems.count == pasteboardItems.count else { return nil }
 
     // Drop on the item
-    let parentItem = item as? OutlineViewItem
+    let parentItem = item as? NSObject
     if index == NSOutlineViewDropOnItemIndex {
       return parentItem.map { .init(type: .on, targetItem: $0, draggedItems: draggedItems, operation: info.draggingSourceOperationMask) }
     }

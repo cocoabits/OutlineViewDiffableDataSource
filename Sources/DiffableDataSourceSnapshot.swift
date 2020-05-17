@@ -5,7 +5,7 @@ import os
 public struct DiffableDataSourceSnapshot {
 
   /// Shortcut for outline view objects.
-  public typealias Item = AnyObject
+  public typealias Item = NSObject
 
   /// Shortcut for outline view object IDs.
   typealias ItemID = ObjectIdentifier

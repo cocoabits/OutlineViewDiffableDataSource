@@ -1,7 +1,7 @@
 import AppKit
 
 /// Outline view cannot work with structs, identifiers are necessary for diffing and diagnostics, hashing is necessary for supporting drag-n-drop and expand-collapse.
-public protocol OutlineViewItem: class {
+public protocol OutlineViewItem: NSObjectProtocol {
 
   /// Used to allow or deny selection for this item.
   var isSelectable: Bool { get }

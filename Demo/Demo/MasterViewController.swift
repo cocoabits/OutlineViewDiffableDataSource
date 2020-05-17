@@ -23,6 +23,7 @@ final class MasterViewController: NSViewController {
     outlineView.allowsMultipleSelection = true
     outlineView.usesAutomaticRowHeights = true
     outlineView.selectionHighlightStyle = .sourceList
+    outlineView.floatsGroupRows = false
 
     let scrollView = NSScrollView()
     scrollView.documentView = outlineView
@@ -87,13 +88,13 @@ extension MasterViewController {
   }
 
   /// Read-only selection.
-  var selectionPublisher: AnyPublisher<[MasterItem], Never> {
+  var selectionPublisher: AnyPublisher<[MasterOutlineViewItem], Never> {
     NotificationCenter.default
       .publisher(for: NSOutlineView.selectionDidChangeNotification, object: scrollableOutlineView.outlineView)
       .compactMap { notification in notification.object as? NSOutlineView }
       .map { outlineView in
         outlineView.selectedRowIndexes.compactMap { selectedRow in
-          outlineView.item(atRow: selectedRow) as? MasterItem
+          outlineView.item(atRow: selectedRow) as? MasterOutlineViewItem
         }
       }
       .eraseToAnyPublisher()
