@@ -155,7 +155,7 @@ public class OutlineViewDiffableDataSource<Item: OutlineViewItem>: NSObject, NSO
   /// Creates a cell view for the given item,
   public func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
     guard let item = item as? Item else { return nil }
-    let cellViewType = item.cellViewType(for: tableColumn) ?? CustomTableCellView.self
+    let cellViewType = item.cellViewType(for: tableColumn)
     let cellViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(cellViewType))
     let cachedCellView = outlineView.makeView(withIdentifier: cellViewTypeIdentifier, owner: self)
     let cellView = cachedCellView as? NSTableCellView ?? {

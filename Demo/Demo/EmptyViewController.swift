@@ -60,6 +60,9 @@ extension EmptyViewController {
       Parent 1 / Child 12
       Parent 1 / Child 13
       Parent 2
+      Parent 2 / Child 21
+      Child 21 / Leaf 211
+      Child 21 / Leaf 212
       Parent 3 / Child 31
       Parent 3 / Child 32
       Parent 3 / Child 33
@@ -77,19 +80,25 @@ private extension EmptyViewController {
     var snapshot: DiffableDataSourceSnapshot<MasterItem> = .init()
     let lines = textView.string.components(separatedBy: .newlines)
     for line in lines {
-      let items = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }
-        .filter { $0.isEmpty == false }.map(MasterItem.init(title:))
-      switch items.count {
+      let titles = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }.filter { $0.isEmpty == false }
+      let id: (String) -> String = { $0.lowercased().replacingOccurrences(of: " ", with: "-") }
+      switch titles.count {
       case 1:
-        if snapshot.itemWithIdentifier(items[0].id) == nil {
-          snapshot.appendItems([items[0]])
+        let groupTitle = titles[0]
+        let groupId = id(groupTitle)
+        if snapshot.itemWithIdentifier(groupId) == nil {
+          snapshot.appendItems([MasterItem(id: groupId, title: groupTitle)])
         }
       case 2:
-        if snapshot.itemWithIdentifier(items[0].id) == nil {
-          snapshot.appendItems([items[0]])
+        let parentTitle = titles[0]
+        let parentId = id(parentTitle)
+        if snapshot.itemWithIdentifier(parentId) == nil {
+          snapshot.appendItems([MasterItem(id: parentId, title: parentTitle)])
         }
-        if snapshot.itemWithIdentifier(items[1].id) == nil {
-          snapshot.appendItems([items[1]], into: items[0])
+        let childTitle = titles[1]
+        let childId = id(childTitle)
+        if snapshot.itemWithIdentifier(childId) == nil {
+          snapshot.appendItems([MasterItem(id: childId, title: childTitle)], into: snapshot.itemWithIdentifier(parentId))
         }
       default:
         continue

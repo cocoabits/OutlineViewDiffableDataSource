@@ -9,9 +9,12 @@ public protocol OutlineViewItem: class, Identifiable, Hashable {
   /// Used to show or hide the expansion arrow.
   var isExpandable: Bool { get }
 
+  /// Can be used for root items with ‘Show’ and ‘Hide’ buttons.
+  var isGroup: Bool { get }
+
   /// Called to create a cell view of the custom type.
   /// - Parameter tableColumn: Optional column that the view will be inserted into.
-  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type?
+  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type
 
   /// Called to create a row view of the custom type.
   var rowViewType: NSTableRowView.Type? { get }
@@ -36,8 +39,11 @@ public extension OutlineViewItem {
   /// Any item can be expanded and collapsed by default.
   var isExpandable: Bool { true }
 
-  /// Use a standard cell view type by default.
-  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type? { nil }
+  /// No group items by default.
+  var isGroup: Bool { false }
+
+  /// Returns an empty cell view by default.
+  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { NSTableCellView.self }
 
   /// Use a standard row view type by default.
   var rowViewType: NSTableRowView.Type? { nil }

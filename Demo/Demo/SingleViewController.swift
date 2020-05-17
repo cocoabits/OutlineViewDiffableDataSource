@@ -56,13 +56,14 @@ private extension SingleViewController {
   /// Inserts item contents.
   @IBAction func appendItemContents(_ sender: Any?) {
     guard let textView = scrollableEditor.documentView as? NSTextView else { return }
-    let lines = textView.string.components(separatedBy: .newlines)
-
     guard let selectedItem = representedObject as? MasterItem else { return }
     var snapshot = snapshotBinding.wrappedValue
+    let lines = textView.string.components(separatedBy: .newlines)
     for line in lines {
       let items = line.components(separatedBy: "/").map { $0.trimmingCharacters(in: .whitespaces) }
-        .filter { $0.isEmpty == false }.map(MasterItem.init(title:))
+        .filter { $0.isEmpty == false }.map { title in
+          MasterItem(id: title.lowercased().replacingOccurrences(of: " ", with: "-"), title: title)
+        }
       switch items.count {
       case 1:
         if snapshot.itemWithIdentifier(items[0].id) == nil {

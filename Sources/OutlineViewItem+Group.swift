@@ -1,40 +1,40 @@
 import AppKit
-import OutlineViewDiffableDataSource
 
-/// Sidebar iitems.
-class MasterItem: OutlineViewItem, Codable {
+/// Default root item with buttons ‘Show’ and ‘Hide’, not intended for subclassing.
+public final class GroupOutlineViewItem: OutlineViewItem {
 
-  /// Unique identifier of the item.
-  let id: String
+  /// Unique identifier for diffing.
+  public let id: String
 
-  /// Visible string.
-  let title: String
+  /// Display string.
+  public let title: String
 
-  /// Enable drag-n-drop.
-  static let allowsDragging: Bool = true
+  /// Enable-drag-n-drop by default.
+  public static let allowsDragging: Bool = true
 
-  /// Creates a new item ready for insertion into the sidebar.
-  init(id: String, title: String) {
+  /// Creates a “standard” root item for the sidebar.
+  public init(id: String, title: String) {
     self.id = id
     self.title = title
   }
 
-  /// Returns a private cell view type.
-  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { MasterCellView.self }
+  /// Returns an appropriate cell view type.
+  public func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { GroupTableCellView.self }
 }
 
 // MARK: - Private API
 
-final private class MasterCellView: NSTableCellView {
-
-  /// Creates a cell with a label.
-  init() {
+/// Private implementation not intended for subclassing.
+private final class GroupTableCellView: NSTableCellView {
+  
+  /// Creates a cell with a label that will be configure by AppKit.
+  public init() {
     super.init(frame: .zero)
 
     let label = NSTextField(labelWithString: "")
-    label.translatesAutoresizingMaskIntoConstraints = false
     label.lineBreakMode = .byTruncatingTail
     label.allowsExpansionToolTips = true
+    label.translatesAutoresizingMaskIntoConstraints = false
     label.setContentHuggingPriority(.fittingSizeCompression, for: .horizontal)
     label.setContentCompressionResistancePriority(.fittingSizeCompression, for: .horizontal)
     addSubview(label)
@@ -56,7 +56,7 @@ final private class MasterCellView: NSTableCellView {
   }
 
   @available(*, unavailable, message: "Use init")
-  required init?(coder: NSCoder) {
+  public required init?(coder: NSCoder) {
     fatalError()
   }
 
@@ -71,11 +71,11 @@ final private class MasterCellView: NSTableCellView {
     }
   }
 
-  /// Retrieves new title from the associated master item.
+  /// Retrieves new title from the associated group item.
   override var objectValue: Any? {
     didSet {
-      if let label = textField, let masterItem = objectValue as? MasterItem {
-        label.stringValue = masterItem.title
+      if let label = textField, let groupItem = objectValue as? GroupOutlineViewItem {
+        label.stringValue = groupItem.title
       }
     }
   }
