@@ -50,7 +50,6 @@ If you download and play with the sample app, it’s already cool. But if you re
 - [ ] Explain how to implement drag-n-drop in your app
 - [ ] Add versioning because now it’s just a `master` branch
 - [ ] Add this project to the [Dave’s](https://swiftpm.co) repository  of Swift Packages
-- [ ] Make a [GitHub Action]() for building and testing a Swift Package
 - [ ] Improve the Demo app, it’s too basic and doesn’t show all the features
 - [ ] File a Radar requesting a real `NSOutlineViewDiffableDataSource`, why not
 
