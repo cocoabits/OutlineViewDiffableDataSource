@@ -195,9 +195,13 @@ public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, N
 
 public extension OutlineViewDiffableDataSource {
 
-  /// Returns current state of the data source.
+  /// Returns current state of the data source. This property is thread-safe.
   func snapshot() -> DiffableDataSourceSnapshot {
-    diffableSnapshot
+    if Thread.isMainThread {
+      return diffableSnapshot
+    } else {
+      return DispatchQueue.main.sync { diffableSnapshot }
+    }
   }
 
   /// Applies the given snapshot to this data source in background.
@@ -207,7 +211,7 @@ public extension OutlineViewDiffableDataSource {
   func applySnapshot(_ snapshot: DiffableDataSourceSnapshot, animatingDifferences: Bool, completionHandler: (() -> Void)? = nil) {
 
     // Source and Destination
-    let oldSnapshot = diffableSnapshot
+    let oldSnapshot = self.snapshot()
     let newSnapshot = snapshot
 
     // Apply changes immediately if animation is disabled
@@ -277,7 +281,7 @@ public extension OutlineViewDiffableDataSource {
     if Thread.isMainThread {
       applyWithAnimation()
     } else {
-      DispatchQueue.main.async(execute: applyWithAnimation)
+      DispatchQueue.main.sync(execute: applyWithAnimation)
     }
   }
 }
