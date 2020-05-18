@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - add/github-actions # TODO: remove this after create pull request
 
 jobs:
   build-and-test:
