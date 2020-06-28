@@ -6,7 +6,9 @@ At WWDC 2019 Apple introduced amazing APIs for `UITableView` and `UICollectionVi
 
 ### Watch the official video [“Advances in UI Data Sources”](https://developer.apple.com/videos/play/wwdc2019/220/) to get a better idea.
 
-These diffable APIs were fantastic news for UIKit Developers. Unfortunately AppKit has got only [`NSCollectionViewDiffableDataSource`](https://developer.apple.com/documentation/appkit/nscollectionviewdiffabledatasource) which means that our favorite `NSTableView` and, more importantly, `NSOutlineView` our out of luck. And well… I can make a bet that we won’t see anything like `NSOutlineViewDiffableDataSource` at WWDC 2020.
+These diffable APIs were fantastic news for UIKit Developers. Unfortunately AppKit has got only [`NSCollectionViewDiffableDataSource`](https://developer.apple.com/documentation/appkit/nscollectionviewdiffabledatasource) which means that our favorite `NSTableView` and, more importantly, `NSOutlineView` are out of luck. And well… my bet that we won’t see anything like `NSOutlineViewDiffableDataSource` at WWDC 2020.
+
+_Update: macOS 11 brought us [NSTableViewDiffableDataSource](https://developer.apple.com/documentation/appkit/nstableviewdiffabledatasourcereference) but I was right regarding the outline view._
 
 ## OutlineViewDiffableDataSource
 
