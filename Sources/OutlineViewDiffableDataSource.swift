@@ -1,7 +1,7 @@
 import AppKit
 
 /// Offers a diffable interface for providing content for `NSOutlineView`.  It automatically performs insertions, deletions, and moves necessary to transition from one model-state snapshot to another.
-public class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
+open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
 
   /// Shortcut for outline view objects.
   public typealias Item = DiffableDataSourceSnapshot.Item
