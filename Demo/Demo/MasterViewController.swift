@@ -84,6 +84,8 @@ extension MasterViewController {
       dataSource.snapshot()
     }, set: { [dataSource] snapshot in
       dataSource.applySnapshot(snapshot, animatingDifferences: shouldAnimate)
+      
+      self.expandAllItems(nil)
     })
   }
 

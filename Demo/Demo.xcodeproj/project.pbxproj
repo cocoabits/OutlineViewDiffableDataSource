@@ -50,6 +50,26 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		293D26EE2706F38B00333635 /* Left Panel */ = {
+			isa = PBXGroup;
+			children = (
+				DDCAB9542464771600E5AA41 /* MasterViewController.swift */,
+				DD61CF572471882A00CA0BE9 /* MasterOutlineViewItem.swift */,
+			);
+			name = "Left Panel";
+			sourceTree = "<group>";
+		};
+		293D26EF2706F39A00333635 /* Right Panel */ = {
+			isa = PBXGroup;
+			children = (
+				DDCAB9562464785700E5AA41 /* DetailViewController.swift */,
+				DDCAB9582464796400E5AA41 /* EmptyViewController.swift */,
+				DDCAB95A24647B7200E5AA41 /* SingleViewController.swift */,
+				DDCAB95C24647BBF00E5AA41 /* MultiViewController.swift */,
+			);
+			name = "Right Panel";
+			sourceTree = "<group>";
+		};
 		DDCB690F245DDAFD00489647 = {
 			isa = PBXGroup;
 			children = (
@@ -73,16 +93,12 @@
 				DDCB691B245DDAFD00489647 /* AppDelegate.swift */,
 				DDCB691F245DDB0000489647 /* Assets.xcassets */,
 				DDCB6925245DDB0000489647 /* Demo.entitlements */,
-				DDCAB9562464785700E5AA41 /* DetailViewController.swift */,
+				DDCAB952246475AB00E5AA41 /* MainViewController.swift */,
+				293D26EE2706F38B00333635 /* Left Panel */,
+				293D26EF2706F39A00333635 /* Right Panel */,
 				DD61CF5524717B1D00CA0BE9 /* DiffableDataSourceSnapshot+Additions.swift */,
-				DDCAB9582464796400E5AA41 /* EmptyViewController.swift */,
 				DDCB6924245DDB0000489647 /* Info.plist */,
 				DDCB6921245DDB0000489647 /* Main.storyboard */,
-				DDCAB952246475AB00E5AA41 /* MainViewController.swift */,
-				DD61CF572471882A00CA0BE9 /* MasterOutlineViewItem.swift */,
-				DDCAB9542464771600E5AA41 /* MasterViewController.swift */,
-				DDCAB95C24647BBF00E5AA41 /* MultiViewController.swift */,
-				DDCAB95A24647B7200E5AA41 /* SingleViewController.swift */,
 			);
 			path = Demo;
 			sourceTree = "<group>";
