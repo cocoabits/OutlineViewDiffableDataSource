@@ -14,7 +14,6 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   
   /// Re-targeting API for drag-n-drop.
   public struct ProposedDrop {
-    
     /// Dropping type.
     public enum `Type` {
       case on, before, after
@@ -89,10 +88,16 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
     return item.isExpandable
   }
   
+  // MARK: Drag & Drop
+  
   /// Enables dragging for items which return Pasteboard representation.
   public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
-    guard let item = item as? Item, let itemId = diffableSnapshot.idForItem(item) else { return nil }
-    return NSPasteboardItem(pasteboardPropertyList: itemId.uuidString, ofType: .itemID)
+    guard let item = item as? Item,
+          let itemId = diffableSnapshot.idForItem(item) else { return nil }
+    
+    let pasteboardItem = NSPasteboardItem()
+    pasteboardItem.setString(itemId, forType: .itemID)
+    return pasteboardItem
   }
   
   /// This override is necessary to disable special mouse down behavior in the outline view.
@@ -156,15 +161,19 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   /// Creates a cell view for the given item,
   public func outlineView(_ outlineView: NSOutlineView, viewFor tableColumn: NSTableColumn?, item: Any) -> NSView? {
     guard let item = item as? OutlineViewItem else { return nil }
+    
     let cellViewType = item.cellViewType(for: tableColumn)
     let cellViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(cellViewType))
     let cachedCellView = outlineView.makeView(withIdentifier: cellViewTypeIdentifier, owner: self)
+    
     let cellView = cachedCellView as? NSTableCellView ?? {
       let newCellView = cellViewType.init()
       newCellView.identifier = cellViewTypeIdentifier
       return newCellView
     }()
+    
     cellView.objectValue = item
+    
     return cellView
   }
   
@@ -172,6 +181,7 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   public func outlineView(_ outlineView: NSOutlineView, selectionIndexesForProposedSelection proposedSelectionIndexes: IndexSet) -> IndexSet {
     proposedSelectionIndexes.filteredIndexSet {
       guard let item = outlineView.item(atRow: $0) as? OutlineViewItem else { return false }
+      
       return item.isSelectable
     }
   }
@@ -179,14 +189,17 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   /// Creates a row view for the given item,
   public func outlineView(_ outlineView: NSOutlineView, rowViewForItem item: Any) -> NSTableRowView? {
     guard let item = item as? OutlineViewItem else { return nil }
+    
     let rowViewType = item.rowViewType ?? NSTableRowView.self
     let rowViewTypeIdentifier = NSUserInterfaceItemIdentifier(NSStringFromClass(rowViewType))
     let cachedRowView = outlineView.makeView(withIdentifier: rowViewTypeIdentifier, owner: self)
+    
     let rowView = cachedRowView as? NSTableRowView ?? {
       let newRowView = rowViewType.init()
       newRowView.identifier = rowViewTypeIdentifier
       return newRowView
     }()
+    
     return rowView
   }
 }
@@ -277,8 +290,11 @@ public extension OutlineViewDiffableDataSource {
       NSAnimationContext.runAnimationGroup({ context in
         context.duration = animationDuration
         self.outlineView?.beginUpdates()
+        
         self.diffableSnapshot = newSnapshot
+        
         applyMoves()
+        
         self.outlineView?.endUpdates()
       }, completionHandler: completionHandler)
     }
@@ -301,14 +317,15 @@ private extension OutlineViewDiffableDataSource {
     
     // Retrieve dragged items
     let draggedItems: [Item] = pasteboardItems.compactMap { pasteboardItem in
-      guard let propertyList = pasteboardItem.propertyList(forType: .itemID) as? String,
-            let itemId = DiffableDataSourceSnapshot.ItemID(uuidString: propertyList) else { return nil }
+      guard let itemId = pasteboardItem.string(forType: .itemID) else {
+        return nil
+      }
       return diffableSnapshot.itemForId(itemId)
     }
     guard draggedItems.count == pasteboardItems.count else { return nil }
     
     // Drop on the item
-    let parentItem = item as? NSObject
+    let parentItem = item as? OutlineViewItem
     if index == NSOutlineViewDropOnItemIndex {
       return parentItem.map { .init(type: .on, targetItem: $0, draggedItems: draggedItems, operation: info.draggingSourceOperationMask) }
     }

@@ -3,14 +3,19 @@ import OutlineViewDiffableDataSource
 
 final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
-  private class OutlineItem: NSObject, OutlineViewItem {
+  private class OutlineItem: OutlineViewItem {
     let title: String
-    init(title: String) { self.title = title }
-    override var hash: Int { title.hash }
-    override func isEqual(_ object: Any?) -> Bool {
-      guard let outlintItem = object as? OutlineItem else { return false }
-      return outlintItem.title == title
+    
+    init(id: String, title: String) {
+      self.title = title
+      super.init(id: id)
     }
+    
+    convenience init(title: String) {
+      self.init(id: UUID().uuidString, title: title)
+    }
+    
+    override var hash: Int { title.hash }
   }
 
   private lazy var outlineView: NSOutlineView = {
