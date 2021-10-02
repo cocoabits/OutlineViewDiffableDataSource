@@ -208,20 +208,24 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
 
 public extension OutlineViewDiffableDataSource {
   
-  /// Returns current state of the data source. This property is thread-safe.
+  /// Returns current state of the data source.
   func snapshot() -> DiffableDataSourceSnapshot {
-    if Thread.isMainThread {
-      return diffableSnapshot
-    } else {
-      return DispatchQueue.main.sync { diffableSnapshot }
-    }
+    assert(Thread.isMainThread, "Should be called on the main thread")
+    
+    return diffableSnapshot
   }
   
-  /// Applies the given snapshot to this data source in background.
+  /// Performs a `reloadData`
+  func reloadData() {
+    outlineView?.reloadData()
+  }
+  
+  /// Applies the given snapshot to this data source.
   /// - Parameter snapshot: Snapshot with new data.
   /// - Parameter animatingDifferences: Pass false to disable animations.
   /// - Parameter completionHandler: Called asynchronously in the main thread when the new snapshot is applied.
   func applySnapshot(_ snapshot: DiffableDataSourceSnapshot, animatingDifferences: Bool, completionHandler: (() -> Void)? = nil) {
+    assert(Thread.isMainThread, "Should be called on the main thread")
     
     // Source and Destination
     let oldSnapshot = self.snapshot()
@@ -229,16 +233,9 @@ public extension OutlineViewDiffableDataSource {
     
     // Apply changes immediately if animation is disabled
     guard animatingDifferences else {
-      func apply() {
-        diffableSnapshot = newSnapshot
-        outlineView?.reloadData()
-        completionHandler?()
-      }
-      if Thread.isMainThread {
-        apply()
-      } else {
-        DispatchQueue.main.async(execute: apply)
-      }
+      diffableSnapshot = newSnapshot
+      reloadData()
+      completionHandler?()
       return
     }
     
@@ -248,8 +245,16 @@ public extension OutlineViewDiffableDataSource {
     let difference = newIndexedIds.difference(from: oldIndexedIds)
     let differenceWithMoves = difference.inferringMoves()
     
-    // Apply changes. Called from within `beginUpdates` and `endUpdates`
-    func applyMoves() {
+    // Update our snapshot before we animate
+    diffableSnapshot = newSnapshot
+    
+    // Animate with completion
+    NSAnimationContext.runAnimationGroup({ context in
+      context.duration = animationDuration
+      
+      self.outlineView?.beginUpdates()
+            
+      // Apply changes. Called from within `beginUpdates` and `endUpdates`
       differenceWithMoves.forEach {
         switch $0 {
             
@@ -259,11 +264,13 @@ public extension OutlineViewDiffableDataSource {
               let oldIndexedItemId = oldIndexedIds[indexBefore]
               let oldParent = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemForId)
               let oldIndex = oldIndexedItemId.itemPath.last.unsafelyUnwrapped
+              
               let newParent = inserted.parentId.flatMap(newSnapshot.itemForId)
               let newIndex = inserted.itemPath.last.unsafelyUnwrapped
-              outlineView?.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
               
-            } else {
+              outlineView?.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
+            }
+            else {
               // Insert outline view item
               let insertionIndexes = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
               let parentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
@@ -275,7 +282,7 @@ public extension OutlineViewDiffableDataSource {
               // Delete outline view item
               let deletionIndexes = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
               let oldParentItem = before.parentId.flatMap(oldSnapshot.itemForId)
-              outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
+              outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideUp])
             }
             else {
               // the item moved since it's got a valid "index after". We handle moves in `.insert` so this can be
@@ -283,26 +290,9 @@ public extension OutlineViewDiffableDataSource {
             }
         }
       }
-    }
-    
-    // Animate with completion
-    func applyWithAnimation() {
-      NSAnimationContext.runAnimationGroup({ context in
-        context.duration = animationDuration
-        self.outlineView?.beginUpdates()
-        
-        self.diffableSnapshot = newSnapshot
-        
-        applyMoves()
-        
-        self.outlineView?.endUpdates()
-      }, completionHandler: completionHandler)
-    }
-    if Thread.isMainThread {
-      applyWithAnimation()
-    } else {
-      DispatchQueue.main.sync(execute: applyWithAnimation)
-    }
+      
+      self.outlineView?.endUpdates()
+    }, completionHandler: completionHandler)
   }
 }
 

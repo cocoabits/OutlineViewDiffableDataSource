@@ -449,6 +449,11 @@ private extension DiffableDataSourceSnapshot {
       // Create a node
       nodesForIds[newId] = .init(parent: appendToParentId, children: [])
       
+      // Update expansion state
+      if let appendToParentId = appendToParentId {
+        itemForId(appendToParentId)?.isExpandable = true
+      }
+      
       return newId
     }
     
@@ -513,14 +518,19 @@ private extension DiffableDataSourceSnapshot {
     let targetItemNode = nodeForId(targetItemId).unsafelyUnwrapped
     if let newParentId = targetItemNode.parent {
       itemNode.parent = newParentId
+      
       var newParentNode = nodeForId(newParentId).unsafelyUnwrapped
       let targetIndex = newParentNode.children.firstIndex(of: targetItemId).unsafelyUnwrapped
       let insertionIndex = position == .before ? targetIndex : targetIndex + 1
       
       newParentNode.children.insert(itemId, at: insertionIndex)
       nodesForIds[newParentId] = newParentNode
+      
+      // Update expansion state
+      itemForId(newParentId)?.isExpandable = true
     } else {
       itemNode.parent = nil
+      
       let targetIndex = rootIds.firstIndex(of: targetItemId).unsafelyUnwrapped
       let insertionIndex = position == .before ? targetIndex : targetIndex + 1
       rootIds.insert(itemId, at: insertionIndex)

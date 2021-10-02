@@ -12,7 +12,7 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
     }
     
     convenience init(title: String) {
-      self.init(id: UUID().uuidString, title: title)
+      self.init(id: title, title: title)
     }
     
     override var hash: Int { title.hash }
@@ -90,6 +90,8 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
     // THEN: Outline view is updated
     outlineView.expandItem(nil, expandChildren: true)
+    outlineView.layoutSubtreeIfNeeded()
+    
     let expandedItems = (0 ..< outlineView.numberOfRows)
       .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineItem }
     XCTAssertEqual(expandedItems.map(\.title), [a, a2, a3, b, b1].map(\.title))
@@ -128,6 +130,8 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
     // THEN: Outline view is updated
     outlineView.expandItem(nil, expandChildren: true)
+    outlineView.layoutSubtreeIfNeeded()
+    
     let expandedItems = (0 ..< outlineView.numberOfRows)
       .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineItem }
     XCTAssertEqual(expandedItems.map(\.title), [a, a1, a2, a3, b, b1, b2].map(\.title))
