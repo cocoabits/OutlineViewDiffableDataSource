@@ -34,7 +34,6 @@ extension DiffableDataSourceSnapshot {
           }
         case 2:
           let childItemToAdd = MasterOutlineViewItem(id: titles[1], title: titles[1])
-          childItemToAdd.isExpandable = false
           
           if containsItem(childItemToAdd) == false {
             // Parent / Child specified. Find
@@ -54,9 +53,6 @@ extension DiffableDataSourceSnapshot {
             } else if foundSidebarItem {
               parentItemToUse = sideBarItem
             }
-            
-            // Make sure the item is expandable
-            parentItemToUse?.isExpandable = true
             
             appendItems([childItemToAdd], into: parentItemToUse)
           }

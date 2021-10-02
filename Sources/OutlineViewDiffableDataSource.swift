@@ -85,7 +85,7 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
     guard let item = item as? OutlineViewItem else { return true }
-    return item.isExpandable
+    return item.isExpandable && diffableSnapshot.childrenOfItem(item).count > 0
   }
   
   // MARK: Drag & Drop
@@ -269,6 +269,12 @@ public extension OutlineViewDiffableDataSource {
               let newIndex = inserted.itemPath.last.unsafelyUnwrapped
               
               outlineView?.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
+              
+              // Reload new and old parent so their expansion states can be reloaded
+              outlineView?.reloadItem(oldParent, reloadChildren: true)
+              if oldParent != nil {
+                outlineView?.reloadItem(newParent, reloadChildren: true)
+              }
             }
             else {
               // Insert outline view item

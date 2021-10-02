@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-/// Container for the tree of items.
+/// Container for the tree of nodes.
 public struct DiffableDataSourceSnapshot {
 
   /// Shortcut for outline view objects.
@@ -449,11 +449,6 @@ private extension DiffableDataSourceSnapshot {
       // Create a node
       nodesForIds[newId] = .init(parent: appendToParentId, children: [])
       
-      // Update expansion state
-      if let appendToParentId = appendToParentId {
-        itemForId(appendToParentId)?.isExpandable = true
-      }
-      
       return newId
     }
     
@@ -525,9 +520,6 @@ private extension DiffableDataSourceSnapshot {
       
       newParentNode.children.insert(itemId, at: insertionIndex)
       nodesForIds[newParentId] = newParentNode
-      
-      // Update expansion state
-      itemForId(newParentId)?.isExpandable = true
     } else {
       itemNode.parent = nil
       

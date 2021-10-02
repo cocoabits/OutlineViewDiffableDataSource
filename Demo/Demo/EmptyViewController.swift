@@ -4,7 +4,6 @@ import OutlineViewDiffableDataSource
 
 /// The number of controls for an empty outline view selection.
 final class EmptyViewController: NSViewController {
-
   /// Multiline text editor for the outline contents.
   private lazy var scrollableEditor: NSScrollView = {
     let scrollView = NSTextView.scrollablePlainDocumentContentTextView()
@@ -29,12 +28,6 @@ final class EmptyViewController: NSViewController {
   @available(*, unavailable, message: "IB is denied")
   required init?(coder: NSCoder) {
     fatalError()
-  }
-  
-  override func viewDidAppear() {
-    super.viewDidLoad()
-    
-    fillSidebar(nil)
   }
 }
 
@@ -80,6 +73,7 @@ extension EmptyViewController {
 //    Child 31 / Child 33
 //    Child 33 / Child 32
 
+    fillSidebar(nil)
   }
 }
 

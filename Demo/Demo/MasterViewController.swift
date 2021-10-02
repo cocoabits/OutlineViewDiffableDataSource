@@ -65,9 +65,6 @@ final class MasterViewController: NSViewController {
       // Remove dragged items from our snapshot
       snapshot.deleteItems(drop.draggedItems)
       
-      // Make usre the target is expandable
-      drop.targetItem.isExpandable = true
-      
       // Now append / insert them
       switch drop.type {
         case .on:

@@ -9,8 +9,8 @@ open class OutlineViewItem: NSObject {
   /// Used to allow or deny selection for this item. Any item can be selected by default.
   open var isSelectable = true
 
-  /// Used to show or hide the expansion arrow. Not expandable by default.
-  open var isExpandable = false
+  /// Used to show or hide the expansion arrow. Any node with a child is expandable by default. Setting this to `false` will disable expansion irrespectively.
+  open var isExpandable = true
 
   /// Can be used for root items with ‘Show’ and ‘Hide’ buttons. No group items by default.
   open var isGroup: Bool { false }
