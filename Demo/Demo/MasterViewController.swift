@@ -36,7 +36,7 @@ final class MasterViewController: NSViewController {
   /// Diffable data source similar to `NSCollectionViewDiffableDataSource`.
   private lazy var dataSource: OutlineViewDiffableDataSource = {
     let source = OutlineViewDiffableDataSource(outlineView: scrollableOutlineView.outlineView)
-    source.draggingHandlers = OutlineViewDiffableDataSource.DraggingHandlers(validateDrop: { _, drop in
+    source.draggingHandlers = OutlineViewDiffableDataSource.DraggingHandlers(validateDrop: { dataSource, drop in
       
       // Option-, Control- and Command- modifiers are disabled
       guard drop.operation.contains(.move) else { return nil }
@@ -50,6 +50,11 @@ final class MasterViewController: NSViewController {
           return true
         }
         return drop.targetItem.isGroup && drop.type != .on
+      }) else { return nil }
+      
+      // Target cannot be a child
+      guard drop.draggedItems.allSatisfy({
+        dataSource.snapshot().isItemAncestor($0, of: drop.targetItem) == false
       }) else { return nil }
       
       return drop

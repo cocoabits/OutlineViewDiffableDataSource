@@ -35,7 +35,7 @@ open class OutlineViewItem: NSObject {
   open override func isEqual(_ object: Any?) -> Bool {
     guard let otherItem = object as? OutlineViewItem else { return false }
     return otherItem.id == id
-  }
+  }  
 }
 
 open class GroupOutlineViewItem: OutlineViewItem {

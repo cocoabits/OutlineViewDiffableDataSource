@@ -68,7 +68,7 @@ public extension DiffableDataSourceSnapshot {
   func numberOfItems(in parentItem: Item?) -> Int {
     guard let parentItem = parentItem else { return rootIds.count }
     guard let parentNode = idForItem(parentItem).flatMap(nodeForId) else {
-      os_log(.error, log: errors, "Cannot find parent item “%s”", String(describing: parentItem))
+      os_log(.error, log: errors, "numberOfItems - Cannot find parent item “%s”", String(describing: parentItem))
       return 0
     }
     return parentNode.children.count
@@ -79,7 +79,7 @@ public extension DiffableDataSourceSnapshot {
   func childrenOfItem(_ parentItem: Item?) -> [Item] {
     guard let parentItem = parentItem else { return rootIds.compactMap(itemForId) }
     guard let parentNode = idForItem(parentItem).flatMap(nodeForId) else {
-      os_log(.error, log: errors, "Cannot find parent item “%s”", String(describing: parentItem))
+      os_log(.error, log: errors, "childrenOfItem - Cannot find parent item “%s”", String(describing: parentItem))
       return []
     }
     return parentNode.children.compactMap(itemForId)
@@ -93,6 +93,44 @@ public extension DiffableDataSourceSnapshot {
       return nil
     }
     return childNode.parent.flatMap(itemForId)
+  }
+  
+  
+  /// Returns `true` if the given item is a child of a given item or its sub-items
+  /// - Parameters:
+  ///   - item: item to check
+  ///   - anotherItem: another item
+  func isItemDescendant(_ item: Item, of anotherItem: Item) -> Bool {
+    if item == anotherItem { return true }
+    
+    let childrenOfOther = childrenOfItem(anotherItem)
+    if childrenOfOther.contains(item) {
+      return true
+    }
+    else {
+      for childOfOther in childrenOfOther {
+        return isItemDescendant(item, of: childOfOther)
+      }
+    }
+    return false
+  }
+  
+  /// Returns `true` if the given item is a parent or a grand parent of a given item
+  /// - Parameters:
+  ///   - item: item to check
+  ///   - anotherItem: another item
+  func isItemAncestor(_ item: Item, of anotherItem: Item) -> Bool {
+    if item == anotherItem { return true }
+    
+    if let parentOfOther = parentOfItem(anotherItem) {
+      if item == parentOfOther {
+        return true
+      }
+      else {
+        return isItemAncestor(item, of: parentOfOther)
+      }
+    }
+    return false
   }
 
   /// Returns index of the given child item in its parent, or `nil` if the given item is not in the snapshot.
@@ -381,7 +419,7 @@ private extension DiffableDataSourceSnapshot {
     
     // Ignore if parent item (to append to) passed but not found
     if parentItemToAppendTo != nil && appendToParentNode == nil {
-      os_log(.error, log: errors, "Cannot find parent item “%s”", String(describing: parentItemToAppendTo))
+      os_log(.error, log: errors, "insertItems - Cannot find parent item “%s”", String(describing: parentItemToAppendTo))
       return false
     }
     
