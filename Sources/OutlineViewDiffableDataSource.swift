@@ -280,7 +280,11 @@ public extension OutlineViewDiffableDataSource {
               // Insert outline view item
               let insertionIndexes = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
               let parentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
+             
               outlineView?.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
+              
+              // Reload new parent so their expansion states can be reloaded
+              outlineView?.reloadItem(parentItem, reloadChildren: true)
             }
             
           case .remove(_, let before, let indexAfter):
@@ -288,7 +292,11 @@ public extension OutlineViewDiffableDataSource {
               // Delete outline view item
               let deletionIndexes = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
               let oldParentItem = before.parentId.flatMap(oldSnapshot.itemForId)
-              outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideUp])
+              
+              outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
+              
+              // Reload old parent so their expansion states can be reloaded
+              outlineView?.reloadItem(oldParentItem, reloadChildren: true)
             }
             else {
               // the item moved since it's got a valid "index after". We handle moves in `.insert` so this can be

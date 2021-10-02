@@ -302,12 +302,13 @@ extension DiffableDataSourceSnapshot {
 
     /// Only IDs should be equal.
     static func == (lhs: Self, rhs: Self) -> Bool {
-      lhs.itemId == rhs.itemId
+      lhs.itemId == rhs.itemId && lhs.parentId == rhs.parentId
     }
 
     /// Only ID means as hash.
     func hash(into hasher: inout Hasher) {
       hasher.combine(itemId)
+      hasher.combine(parentId)
     }
   }
 
