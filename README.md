@@ -38,6 +38,7 @@ Not sure how this ends, but the `DiffableDataSourceSnapshot` is a value type. Ju
 ## Requirements
 
 SPM: macOS 10.11
+
 Demo: macOS 10.15
 
 ## Demo App
