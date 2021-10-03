@@ -140,7 +140,7 @@ public extension DiffableDataSourceSnapshot {
       os_log(.error, log: errors, "Cannot find item “%s”", String(describing: childItem))
       return nil
     }
-    let children = childIdsOfItemWithId(childNode.parent)
+    let children = childIdsWithParentId(childNode.parent)
     return children.firstIndex(of: childId)
   }
 
@@ -180,8 +180,9 @@ public extension DiffableDataSourceSnapshot {
 
     var affectedIds = Set(existingItems.compactMap(idForItem))
     enumerateItemIds { indexedId in
-      guard let parentId = indexedId.parentId, affectedIds.contains(parentId) else { return }
-      affectedIds.insert(indexedId.itemId)
+      if let parentId = indexedId.parentId, affectedIds.contains(parentId) {
+        affectedIds.insert(indexedId.itemId)
+      }
     }
 
     let affectedParentIds = Set(affectedIds.map { nodeForId($0)?.parent })
@@ -288,7 +289,7 @@ public extension DiffableDataSourceSnapshot {
 
 extension DiffableDataSourceSnapshot {
 
-  /// Container for sorting.
+  /// Node representation for sorting / diffing
   struct IndexedID: Hashable {
 
     /// Item identifier.
@@ -312,7 +313,7 @@ extension DiffableDataSourceSnapshot {
     }
   }
 
-  /// Identifiers of stored items sorted from top to bottom.
+  /// A linear list of identifiers of stored items, sorted from top to bottom.
   func indexedIds() -> [IndexedID] {
     var result: [IndexedID] = []
     enumerateItemIds { indexedId in
@@ -336,9 +337,11 @@ extension DiffableDataSourceSnapshot {
 
   /// Returns identifiers of children for the given parent identifier.
   /// - Parameter parentId: Pass nil to retrieve root item identifiers.
-  func childIdsOfItemWithId(_ parentId: ItemID?) -> [ItemID] {
-    guard let parentNode = parentId.flatMap(nodeForId) else { return rootIds }
-    return parentNode.children
+  func childIdsWithParentId(_ parentId: ItemID?) -> [ItemID] {
+    if let parentNode = parentId.flatMap(nodeForId) {
+      return parentNode.children
+    }
+    return rootIds
   }
 }
 
@@ -385,13 +388,15 @@ private extension DiffableDataSourceSnapshot {
 
   /// Recursively goes through the whole tree and runs a callback with node.
   /// - Parameter block: Callback for every node in the tree.
-  /// - Parameter indexedId: Container for sorting.
+  /// - Parameter indexedId: Node representation for sorting / diffing
   func enumerateItemIds(using block: (_ indexedId: IndexedID) -> Void) {
     func enumerateChildrenOf(_ parentId: ItemID?, parentPath: IndexPath) {
-      childIdsOfItemWithId(parentId).enumerated().forEach { offset, itemId in
+      childIdsWithParentId(parentId).enumerated().forEach { offset, itemId in
         let itemPath = parentPath.appending(offset)
         let indexedId = IndexedID(itemId: itemId, parentId: parentId, itemPath: itemPath)
+        
         block(indexedId)
+        
         enumerateChildrenOf(itemId, parentPath: itemPath)
       }
     }

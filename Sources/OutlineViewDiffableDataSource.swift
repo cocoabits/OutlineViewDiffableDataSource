@@ -245,6 +245,9 @@ public extension OutlineViewDiffableDataSource {
     let difference = newIndexedIds.difference(from: oldIndexedIds)
     let differenceWithMoves = difference.inferringMoves()
     
+    // FIXME: handle moves that cancel each other out, such as removing a row and re-inserting it in the same position.
+    // do it without animation
+    
     // Update our snapshot before we animate
     diffableSnapshot = newSnapshot
     
@@ -253,55 +256,72 @@ public extension OutlineViewDiffableDataSource {
       context.duration = animationDuration
       
       self.outlineView?.beginUpdates()
-            
+      
+      // Collect a list of parent items that had their children added / removed. Outline view will not automatically
+      // reload the parent item (and more importantly its expansion state). Once we're done, we'll walk over this
+      // list and reload any node that's still there
+      var parentItemsToReload = Set<DiffableDataSourceSnapshot.ItemID>()
+      
       // Apply changes. Called from within `beginUpdates` and `endUpdates`
-      differenceWithMoves.forEach {
-        switch $0 {
+      differenceWithMoves.forEach { move in
+        switch move {
             
-          case .insert(_, let inserted, let indexBefore):
-            if let indexBefore = indexBefore {
-              // Move outline view item
-              let oldIndexedItemId = oldIndexedIds[indexBefore]
-              let oldParent = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemForId)
+          case .insert(_, let inserted, let previousOffset):
+            if let previousOffset = previousOffset {
+              // Move outline view item from old to new position
+              // previousOffset here is the offset in our flattened list of indexed IDs
+              let oldIndexedItemId = oldIndexedIds[previousOffset]
+              
+              let oldParentItem = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemForId)
               let oldIndex = oldIndexedItemId.itemPath.last.unsafelyUnwrapped
               
-              let newParent = inserted.parentId.flatMap(newSnapshot.itemForId)
+              let newParentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
               let newIndex = inserted.itemPath.last.unsafelyUnwrapped
               
-              outlineView?.moveItem(at: oldIndex, inParent: oldParent, to: newIndex, inParent: newParent)
+              outlineView?.moveItem(at: oldIndex, inParent: oldParentItem, to: newIndex, inParent: newParentItem)
               
-              // Reload new and old parent so their expansion states can be reloaded
-              outlineView?.reloadItem(oldParent, reloadChildren: true)
-              if oldParent != nil {
-                outlineView?.reloadItem(newParent, reloadChildren: true)
+              if let oldParentItem = oldParentItem {
+                parentItemsToReload.insert(oldParentItem.id)
+              }
+              if let newParentItem = newParentItem {
+                parentItemsToReload.insert(newParentItem.id)
               }
             }
             else {
               // Insert outline view item
-              let insertionIndexes = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
+              let insertionIndex = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
               let parentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
-             
-              outlineView?.insertItems(at: insertionIndexes, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
               
-              // Reload new parent so their expansion states can be reloaded
-              outlineView?.reloadItem(parentItem, reloadChildren: true)
+              outlineView?.insertItems(at: insertionIndex, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
+              
+              if let parentItem = parentItem {
+                parentItemsToReload.insert(parentItem.id)
+              }
             }
             
           case .remove(_, let before, let indexAfter):
             if indexAfter == nil {
-              // Delete outline view item
-              let deletionIndexes = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
+              // Delete outline view item from its parent
+              let deletionIndex = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
               let oldParentItem = before.parentId.flatMap(oldSnapshot.itemForId)
               
-              outlineView?.removeItems(at: deletionIndexes, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
+              outlineView?.removeItems(at: deletionIndex, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
               
-              // Reload old parent so their expansion states can be reloaded
-              outlineView?.reloadItem(oldParentItem, reloadChildren: true)
+              if let oldParentItem = oldParentItem {
+                parentItemsToReload.insert(oldParentItem.id)
+              }
             }
             else {
               // the item moved since it's got a valid "index after". We handle moves in `.insert` so this can be
               // ignored
             }
+        }
+      }
+      
+      // Reload parents
+      parentItemsToReload.forEach { parentItemIDToReload in
+        if let itemInNewSnapshot = newSnapshot.itemForId(parentItemIDToReload) {
+          outlineView?.reloadItem(itemInNewSnapshot, reloadChildren: false)
         }
       }
       
