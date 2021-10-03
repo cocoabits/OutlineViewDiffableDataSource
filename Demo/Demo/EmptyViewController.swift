@@ -56,16 +56,7 @@ extension EmptyViewController {
     guard let textView = scrollableEditor.documentView as? NSTextView, textView.string.isEmpty else { return }
     textView.string = """
       Cars / Toyota
-      Cars / Honda
-      Cars / Tesla
-      Phones
-      Phones / Samsung
-      Samsung / Samsung Note
-      Samsung / Samsung Nexus
-      Samsung Nexus / Nexus 5
       OS / macOS
-      OS / Windows
-      OS / Linux
       """
     
 //    Parent 3

@@ -94,7 +94,7 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   /// Enables dragging for items which return Pasteboard representation.
   public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
     guard let item = item as? Item,
-          let itemId = currentSnapshot.idForItem(item) else { return nil }
+          let itemId = currentSnapshot.getIDForItem(item) else { return nil }
     
     let pasteboardItem = NSPasteboardItem()
     pasteboardItem.setString(itemId, forType: .itemID)
@@ -246,10 +246,10 @@ public extension OutlineViewDiffableDataSource {
     }
     
     // Calculate changes
-    let oldIndexedIds = oldSnapshot.indexedIds()
-    let newIndexedIds = newSnapshot.indexedIds()
+    let oldIndexedNodes = oldSnapshot.getSortedIndexedNodes()
+    let newIndexedNodes = newSnapshot.getSortedIndexedNodes()
     
-    let difference = newIndexedIds.changes(from: oldIndexedIds)
+    let difference = newIndexedNodes.changes(from: oldIndexedNodes)
     
     // Some threshold - won't make sense to animate this many changes
     let changeThreshold = 300
@@ -282,13 +282,13 @@ public extension OutlineViewDiffableDataSource {
             if let previousOffset = previousOffset {
               // Move outline view item from old to new position
               // previousOffset here is the offset in our flattened list of indexed IDs
-              let oldIndexedItemId = oldIndexedIds[previousOffset]
+              let oldIndexedNode = oldIndexedNodes[previousOffset]
               
-              let oldParentItem = oldIndexedItemId.parentId.flatMap(oldSnapshot.itemForId)
-              let oldIndex = oldIndexedItemId.itemPath.last.unsafelyUnwrapped
+              let oldParentItem = oldIndexedNode.parentId.flatMap(oldSnapshot.getItemForID)
+              let oldIndex = oldIndexedNode.indexPath.last.unsafelyUnwrapped
               
-              let newParentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
-              let newIndex = inserted.itemPath.last.unsafelyUnwrapped
+              let newParentItem = inserted.parentId.flatMap(newSnapshot.getItemForID)
+              let newIndex = inserted.indexPath.last.unsafelyUnwrapped
               
               outlineView?.moveItem(at: oldIndex, inParent: oldParentItem, to: newIndex, inParent: newParentItem)
               
@@ -301,8 +301,8 @@ public extension OutlineViewDiffableDataSource {
             }
             else {
               // Insert outline view item
-              let insertionIndex = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
-              let parentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
+              let insertionIndex = IndexSet(integer: inserted.indexPath.last.unsafelyUnwrapped)
+              let parentItem = inserted.parentId.flatMap(newSnapshot.getItemForID)
               
               // Before inserting an item, reload the parent item to avoid glitches where the expansion arrow would
               // overlap the item
@@ -315,8 +315,8 @@ public extension OutlineViewDiffableDataSource {
             // A missing associatedWith value indicates this item was removed entirely
             if associatedWith == nil {
               // Delete outline view item from its parent
-              let deletionIndex = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
-              let oldParentItem = before.parentId.flatMap(oldSnapshot.itemForId)
+              let deletionIndex = IndexSet(integer: before.indexPath.last.unsafelyUnwrapped)
+              let oldParentItem = before.parentId.flatMap(oldSnapshot.getItemForID)
               
               outlineView?.removeItems(at: deletionIndex, inParent: oldParentItem, withAnimation: [.effectFade, .slideDown])
               
@@ -333,7 +333,7 @@ public extension OutlineViewDiffableDataSource {
       
       // Reload parents now
       parentItemsToReload.forEach { parentItemIDToReload in
-        if let itemInNewSnapshot = newSnapshot.itemForId(parentItemIDToReload) {
+        if let itemInNewSnapshot = newSnapshot.getItemForID(parentItemIDToReload) {
           outlineView?.reloadItem(itemInNewSnapshot, reloadChildren: false)
         }
       }
@@ -357,7 +357,7 @@ private extension OutlineViewDiffableDataSource {
       guard let itemId = pasteboardItem.string(forType: .itemID) else {
         return nil
       }
-      return currentSnapshot.itemForId(itemId)
+      return currentSnapshot.getItemForID(itemId)
     }
     guard draggedItems.count == pasteboardItems.count else { return nil }
     

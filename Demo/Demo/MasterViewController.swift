@@ -66,7 +66,7 @@ final class MasterViewController: NSViewController {
       switch drop.type {
         case .on:
           // Remove only the dragged items from our snapshot, not their children as we're going to append / re-insert these
-          snapshot.deleteItems(drop.draggedItems)
+          snapshot.deleteItems(drop.draggedItems, withChildren: false)
           snapshot.appendItems(drop.draggedItems, into: drop.targetItem)
         case .before:
           drop.draggedItems.forEach { droppedItem in

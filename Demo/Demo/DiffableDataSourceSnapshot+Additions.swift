@@ -15,8 +15,8 @@ extension DiffableDataSourceSnapshot {
       guard !titles.isEmpty else { continue }
       
       // Use title as the unique ID in this case
-      let rootItem = itemForId(titles[0]) ?? MasterGroupOutlineViewItem(id: titles[0], title: titles[0])
-      let sideBarItem = itemForId(titles[0]) ?? MasterOutlineViewItem(id: titles[0], title: titles[0])
+      let rootItem = getItemForID(titles[0]) ?? MasterGroupOutlineViewItem(id: titles[0], title: titles[0])
+      let sideBarItem = getItemForID(titles[0]) ?? MasterOutlineViewItem(id: titles[0], title: titles[0])
       
       let foundRootItem = containsItem(rootItem)
       let foundSidebarItem = containsItem(sideBarItem)
