@@ -1,7 +1,12 @@
 import Foundation
 import os
 
-/// Container for the tree of nodes.
+/// The internal data source snapshot used by `OutlineViewDiffableDataSource`. Stores and represents the tree of nodes.
+/// All operations are to be performed on a snapshot directly before being passed on `outlineDataSource.apply(...)`
+///
+/// As items of type `OutlineViewItem` are inserted / removed / moved etc, the snapshot manages and updates an internal map for performing lookups.
+/// Each item is stored as a `DiffableDataSourceSnapshot.Node` to keep track of its parent / children. When an item is moved to a new parent,
+/// the internal map is subsequently updated to reflect this.
 public struct DiffableDataSourceSnapshot {
 
   /// Shortcut for outline view objects.
@@ -189,35 +194,43 @@ public extension DiffableDataSourceSnapshot {
   /// - Parameter existingItems: Items added to the snapshot before.
   /// - Returns: False if items cannot be deleted e.g. because some of them are not in the snapshot.
   @discardableResult
-  mutating func deleteItems(_ existingItems: [Item]) -> Bool {
+  mutating func deleteItems(_ existingItems: [Item], withChildren: Bool = true) -> Bool {
     guard contains(existingItems) else { return false }
 
-    var affectedIds = Set(existingItems.compactMap(idForItem))
-    enumerateItemIds { indexedId in
-      if let parentId = indexedId.parentId, affectedIds.contains(parentId) {
-        affectedIds.insert(indexedId.itemId)
+    var itemIdsToRemove = Set(existingItems.compactMap(idForItem))
+    
+    if withChildren {
+      enumerateItemIds { indexedId in
+        if let parentId = indexedId.parentId, itemIdsToRemove.contains(parentId) {
+          itemIdsToRemove.insert(indexedId.itemId)
+        }
       }
     }
 
-    let affectedParentIds = Set(affectedIds.map { nodeForId($0)?.parent })
-    let affectedItems = affectedIds.compactMap(itemForId)
+    // Grab a copy before removing these
+    let affectedParentIds = Set(itemIdsToRemove.map { nodeForId($0)?.parent })
+    let itemsToRemove = itemIdsToRemove.compactMap(itemForId)
     
-    affectedIds.forEach { affectedId in
+    // Now remove all items that have deleted
+    itemIdsToRemove.forEach { affectedId in
       itemsForIds.removeValue(forKey: affectedId)
       nodesForIds.removeValue(forKey: affectedId)
     }
     
-    affectedItems.forEach { affectedItem in
+    itemsToRemove.forEach { affectedItem in
       idsForItems.removeValue(forKey: affectedItem)
     }
-    idsPendingReload.subtract(affectedIds)
-    
-    affectedParentIds.forEach {
-      guard let affectedParentId = $0 else {
-        rootIds.removeAll { affectedIds.contains($0) }
+    idsPendingReload.subtract(itemIdsToRemove)
+        
+    affectedParentIds.forEach { affectedParentId in
+      guard let affectedParentId = affectedParentId else {
+        // remove root item
+        rootIds.removeAll { itemIdsToRemove.contains($0) }
         return
       }
-      nodesForIds[affectedParentId]?.children.removeAll { affectedIds.contains($0) }
+      
+      // Now remove items from affected parents
+      nodesForIds[affectedParentId]?.children.removeAll { itemIdsToRemove.contains($0) }
     }
     return true
   }
@@ -530,36 +543,36 @@ private extension DiffableDataSourceSnapshot {
     guard canMoveItem(item, nextTo: targetItem) else { return false }
 
     // Remove item from old parent
-    let itemId = idForItem(item).unsafelyUnwrapped
-    var itemNode = nodeForId(itemId).unsafelyUnwrapped
-    if let oldParentId = itemNode.parent {
+    let movingItemId = idForItem(item).unsafelyUnwrapped
+    var movingItemNode = nodeForId(movingItemId).unsafelyUnwrapped
+    if let oldParentId = movingItemNode.parent {
       var oldParentNode = nodeForId(oldParentId).unsafelyUnwrapped
-      oldParentNode.children.removeAll { $0 == itemId }
+      oldParentNode.children.removeAll { $0 == movingItemId }
       nodesForIds[oldParentId] = oldParentNode
     } else {
-      rootIds.removeAll { $0 == itemId }
+      rootIds.removeAll { $0 == movingItemId }
     }
 
     // Insert item into new parent
     let targetItemId = idForItem(targetItem).unsafelyUnwrapped
     let targetItemNode = nodeForId(targetItemId).unsafelyUnwrapped
     if let newParentId = targetItemNode.parent {
-      itemNode.parent = newParentId
+      movingItemNode.parent = newParentId
       
       var newParentNode = nodeForId(newParentId).unsafelyUnwrapped
       let targetIndex = newParentNode.children.firstIndex(of: targetItemId).unsafelyUnwrapped
       let insertionIndex = position == .before ? targetIndex : targetIndex + 1
       
-      newParentNode.children.insert(itemId, at: insertionIndex)
+      newParentNode.children.insert(movingItemId, at: insertionIndex)
       nodesForIds[newParentId] = newParentNode
     } else {
-      itemNode.parent = nil
+      movingItemNode.parent = nil
       
       let targetIndex = rootIds.firstIndex(of: targetItemId).unsafelyUnwrapped
       let insertionIndex = position == .before ? targetIndex : targetIndex + 1
-      rootIds.insert(itemId, at: insertionIndex)
+      rootIds.insert(movingItemId, at: insertionIndex)
     }
-    nodesForIds[itemId] = itemNode
+    nodesForIds[movingItemId] = movingItemNode
     return true
   }
 }

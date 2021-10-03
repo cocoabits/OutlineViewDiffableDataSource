@@ -1,13 +1,14 @@
 import AppKit
 
 /// Offers a diffable interface for providing content for `NSOutlineView`.  It automatically performs insertions, deletions, and moves necessary to transition from one model-state snapshot to another.
+/// This relies on a `DiffableDataSourceSnapshot`, which serves as a shadow data source, describing each node of the tree.
 open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSOutlineViewDelegate {
   
   /// Shortcut for outline view objects.
   public typealias Item = DiffableDataSourceSnapshot.Item
   
   /// Tree with data.
-  private var diffableSnapshot: DiffableDataSourceSnapshot
+  private var currentSnapshot: DiffableDataSourceSnapshot
   
   /// Associated outline view.
   private weak var outlineView: NSOutlineView?
@@ -52,7 +53,7 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   /// Creates a new data source as well as a delegate for the given outline view.
   /// - Parameter outlineView: Outline view without a data source and without a delegate.
   public init(outlineView: NSOutlineView) {
-    self.diffableSnapshot = .init()
+    self.currentSnapshot = .init()
     
     super.init()
     
@@ -72,20 +73,20 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-    let count = diffableSnapshot.numberOfItems(in: item as? Item)
+    let count = currentSnapshot.numberOfItems(in: item as? Item)
     return count
   }
   
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-    let childItem = diffableSnapshot.childrenOfItem(item as? Item)[index]
+    let childItem = currentSnapshot.childrenOfItem(item as? Item)[index]
     return childItem
   }
   
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, isItemExpandable item: Any) -> Bool {
     guard let item = item as? OutlineViewItem else { return true }
-    return item.isExpandable && diffableSnapshot.childrenOfItem(item).count > 0
+    return item.isExpandable && currentSnapshot.childrenOfItem(item).count > 0
   }
   
   // MARK: Drag & Drop
@@ -93,7 +94,7 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   /// Enables dragging for items which return Pasteboard representation.
   public func outlineView(_ outlineView: NSOutlineView, pasteboardWriterForItem item: Any) -> NSPasteboardWriting? {
     guard let item = item as? Item,
-          let itemId = diffableSnapshot.idForItem(item) else { return nil }
+          let itemId = currentSnapshot.idForItem(item) else { return nil }
     
     let pasteboardItem = NSPasteboardItem()
     pasteboardItem.setString(itemId, forType: .itemID)
@@ -128,16 +129,16 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
         
         // Re-target drop before item
       case .before:
-        if drop.operation.isEmpty == false, let childIndex = diffableSnapshot.indexOfItem(drop.targetItem) {
-          let parentItem = diffableSnapshot.parentOfItem(drop.targetItem)
+        if drop.operation.isEmpty == false, let childIndex = currentSnapshot.indexOfItem(drop.targetItem) {
+          let parentItem = currentSnapshot.parentOfItem(drop.targetItem)
           outlineView.setDropItem(parentItem, dropChildIndex: childIndex)
         }
         return drop.operation
         
         // Re-target drop after item
       case .after:
-        if drop.operation.isEmpty == false, let childIndex = diffableSnapshot.indexOfItem(drop.targetItem) {
-          let parentItem = diffableSnapshot.parentOfItem(drop.targetItem)
+        if drop.operation.isEmpty == false, let childIndex = currentSnapshot.indexOfItem(drop.targetItem) {
+          let parentItem = currentSnapshot.parentOfItem(drop.targetItem)
           outlineView.setDropItem(parentItem, dropChildIndex: childIndex + 1)
         }
         return drop.operation
@@ -212,7 +213,7 @@ public extension OutlineViewDiffableDataSource {
   func snapshot() -> DiffableDataSourceSnapshot {
     assert(Thread.isMainThread, "Should be called on the main thread")
     
-    return diffableSnapshot
+    return currentSnapshot
   }
   
   /// Performs a `reloadData`
@@ -233,9 +234,12 @@ public extension OutlineViewDiffableDataSource {
     let oldSnapshot = self.snapshot()
     let newSnapshot = snapshot
     
+    // Update our final snapshot before we animate
+    currentSnapshot = newSnapshot
+    
     // Apply changes immediately if animation is disabled
-    guard animatingDifferences else {
-      diffableSnapshot = newSnapshot
+    // When a data source is not set, reload the first time
+    guard animatingDifferences, let _ = outlineView?.dataSource else {
       reloadData()
       completionHandler?()
       return
@@ -246,18 +250,19 @@ public extension OutlineViewDiffableDataSource {
     let newIndexedIds = newSnapshot.indexedIds()
     
     let difference = newIndexedIds.changes(from: oldIndexedIds)
-    let differenceWithMoves = difference.inferringMoves()
     
-    // Update our snapshot before we animate
-    diffableSnapshot = newSnapshot
+    // Some threshold - won't make sense to animate this many changes
+    let changeThreshold = 300
+    let totalChanges = difference.insertions.count + difference.removals.count
     
-    // When a data source is not set, reload the first time
-    guard let _ = outlineView?.dataSource else {
+    guard totalChanges < changeThreshold else {
       reloadData()
+      completionHandler?()
       return
     }
-
     
+    let differenceWithMoves = difference.inferringMoves()
+            
     // Animate with completion
     NSAnimationContext.runAnimationGroup({ context in
       context.duration = animationDuration
@@ -299,15 +304,16 @@ public extension OutlineViewDiffableDataSource {
               let insertionIndex = IndexSet(integer: inserted.itemPath.last.unsafelyUnwrapped)
               let parentItem = inserted.parentId.flatMap(newSnapshot.itemForId)
               
+              // Before inserting an item, reload the parent item to avoid glitches where the expansion arrow would
+              // overlap the item
+              outlineView?.reloadItem(parentItem, reloadChildren: false)
               outlineView?.insertItems(at: insertionIndex, inParent: parentItem, withAnimation: [.effectFade, .slideDown])
-              
-              if let parentItem = parentItem {
-                parentItemsToReload.insert(parentItem.id)
-              }
             }
             
-          case .remove(_, let before, let indexAfter):
-            if indexAfter == nil {
+          case .remove(_, let before, let associatedWith):
+            // A non-nil associatedWith value is the offset of the complementary change.
+            // A missing associatedWith value indicates this item was removed entirely
+            if associatedWith == nil {
               // Delete outline view item from its parent
               let deletionIndex = IndexSet(integer: before.itemPath.last.unsafelyUnwrapped)
               let oldParentItem = before.parentId.flatMap(oldSnapshot.itemForId)
@@ -324,8 +330,6 @@ public extension OutlineViewDiffableDataSource {
             }
         }
       }
-            
-      self.outlineView?.endUpdates()
       
       // Reload parents now
       parentItemsToReload.forEach { parentItemIDToReload in
@@ -333,6 +337,8 @@ public extension OutlineViewDiffableDataSource {
           outlineView?.reloadItem(itemInNewSnapshot, reloadChildren: false)
         }
       }
+            
+      self.outlineView?.endUpdates()
     }, completionHandler: completionHandler)
   }
 }
@@ -351,7 +357,7 @@ private extension OutlineViewDiffableDataSource {
       guard let itemId = pasteboardItem.string(forType: .itemID) else {
         return nil
       }
-      return diffableSnapshot.itemForId(itemId)
+      return currentSnapshot.itemForId(itemId)
     }
     guard draggedItems.count == pasteboardItems.count else { return nil }
     
@@ -362,7 +368,7 @@ private extension OutlineViewDiffableDataSource {
     }
     
     // Drop into the item
-    let childItems = diffableSnapshot.childrenOfItem(parentItem)
+    let childItems = currentSnapshot.childrenOfItem(parentItem)
     guard childItems.isEmpty == false else { return nil }
     
     // Use “before” or “after” depending on index
