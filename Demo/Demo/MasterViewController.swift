@@ -62,21 +62,18 @@ final class MasterViewController: NSViewController {
       
       var snapshot = dataSource.snapshot()
             
-      // Now append / insert them
-      switch drop.type {
-        case .on:
-          // Remove only the dragged items from our snapshot, not their children as we're going to append / re-insert these
-          snapshot.deleteItems(drop.draggedItems, withChildren: false)
-          snapshot.appendItems(drop.draggedItems, into: drop.targetItem)
-        case .before:
-          drop.draggedItems.forEach { droppedItem in
+      drop.draggedItems.forEach { droppedItem in
+        switch drop.type {
+          case .on:
+            // Remove only the dragged items from our snapshot, not their children as we're going to append / re-insert these
+            snapshot.moveItem(droppedItem, into: drop.targetItem)
+          case .before:
             snapshot.moveItem(droppedItem, beforeItem: drop.targetItem)
-          }
-        case .after:
-          drop.draggedItems.forEach { droppedItem in
+          case .after:
             snapshot.moveItem(droppedItem, afterItem: drop.targetItem)
-          }
+        }
       }
+      
       dataSource.applySnapshot(snapshot, animatingDifferences: shouldAnimate) {
         // Testing
         //dataSource.reloadData()

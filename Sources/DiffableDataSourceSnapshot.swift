@@ -27,6 +27,7 @@ public struct DiffableDataSourceSnapshot {
   }
   
   public enum NodePosition {
+    case on
     case before
     case after
   }
@@ -284,8 +285,17 @@ public extension DiffableDataSourceSnapshot {
       return false
     }
     
-    let parentIds = sequence(first: targetItemId) { self.getNodeForID($0)?.parentID }
-    return parentIds.allSatisfy { $0 != itemId }
+    let not = (!)
+    return not(isItemAncestor(item, of: targetItem))
+  }
+  
+  /// Returns `true` if the given item can be moved into the target item.
+  /// - Parameter item: Item added to the snapshot before.
+  /// - Parameter targetItem: The target item added to the snapshot before.
+  /// - Returns: Returns `false` if either the `item` or the `targetItem` do not exist in the snapshot
+  func canMoveItem(_ item: Item, into targetItem: Item) -> Bool {
+    // Same checks performed
+    return canMoveItem(item, nextTo: targetItem)
   }
 
   /// Moves the given item above the target item.
@@ -304,6 +314,15 @@ public extension DiffableDataSourceSnapshot {
   @discardableResult
   mutating func moveItem(_ item: Item, afterItem: Item) -> Bool  {
     moveItem(item, nextTo: afterItem, atPosition: .after)
+  }
+  
+  /// Moves the given item into target item.
+  /// - Parameter item: Item added to the snapshot before.
+  /// - Parameter afterItem: The target item to move into (i.e. target will become item's new parent)
+  /// - Returns: False if the given item cannot be moved e.g. because it’s parent of the target item.
+  @discardableResult
+  mutating func moveItem(_ item: Item, into targetParent: Item) -> Bool  {
+    moveItem(item, nextTo: targetParent, atPosition: .on)
   }
 
   /// Enumerates all items from top to bottom.
@@ -544,7 +563,12 @@ private extension DiffableDataSourceSnapshot {
   /// - Parameter targetIndex: Current index of the target item.
   /// - Returns: False if the item cannot be moved e.g. because it’s a parent of the target item.
   mutating func moveItem(_ item: Item, nextTo targetItem: Item, atPosition position: NodePosition = .before) -> Bool {
-    guard canMoveItem(item, nextTo: targetItem) else { return false }
+    if position == .on && !canMoveItem(item, into: targetItem) {
+      return false
+    }
+    else if !canMoveItem(item, nextTo: targetItem) {
+      return false
+    }
 
     // Remove item from old parent
     let movingItemId = getIDForItem(item).unsafelyUnwrapped
@@ -560,12 +584,16 @@ private extension DiffableDataSourceSnapshot {
     // Insert item into new parent
     let targetItemId = getIDForItem(targetItem).unsafelyUnwrapped
     let targetItemNode = getNodeForID(targetItemId).unsafelyUnwrapped
-    if let newParentId = targetItemNode.parentID {
+    
+    // Use target as the new parent if moving into target, else use target's parent
+    let newParentId = position == .on ? targetItemId : targetItemNode.parentID
+    
+    if let newParentId = newParentId {
       movingItemNode.parentID = newParentId
       
       var newParentNode = getNodeForID(newParentId).unsafelyUnwrapped
-      let targetIndex = newParentNode.childrenIDs.firstIndex(of: targetItemId).unsafelyUnwrapped
-      let insertionIndex = position == .before ? targetIndex : targetIndex + 1
+      let targetIndex = newParentNode.childrenIDs.firstIndex(of: targetItemId) ?? .zero
+      let insertionIndex = position == .before || position == .on ? targetIndex : targetIndex + 1
       
       newParentNode.childrenIDs.insert(movingItemId, at: insertionIndex)
       mapIDToNode[newParentId] = newParentNode
