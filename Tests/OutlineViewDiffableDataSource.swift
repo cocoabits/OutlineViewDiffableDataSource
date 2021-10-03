@@ -30,7 +30,8 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
     // GIVEN: Empty data source
     let dataSource: OutlineViewDiffableDataSource = .init(outlineView: outlineView)
-    XCTAssertTrue(outlineView.dataSource === dataSource)
+    // Data source is only set when applying a snapshot. We perform a reloadData the first time.
+    XCTAssertTrue(outlineView.dataSource == nil)
 
     // WHEN: Outline view is loaded
     outlineView.layoutSubtreeIfNeeded()

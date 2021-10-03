@@ -58,9 +58,7 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
     
     precondition(outlineView.dataSource == nil)
     precondition(outlineView.delegate == nil)
-    outlineView.dataSource = self
     outlineView.delegate = self
-    outlineView.usesAutomaticRowHeights = true
     self.outlineView = outlineView
     outlineView.registerForDraggedTypes(outlineView.registeredDraggedTypes + [.itemID])
   }
@@ -74,12 +72,14 @@ open class OutlineViewDiffableDataSource: NSObject, NSOutlineViewDataSource, NSO
   
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int {
-    diffableSnapshot.numberOfItems(in: item as? Item)
+    let count = diffableSnapshot.numberOfItems(in: item as? Item)
+    return count
   }
   
   /// Uses diffable snapshot.
   public func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any {
-    diffableSnapshot.childrenOfItem(item as? Item)[index]
+    let childItem = diffableSnapshot.childrenOfItem(item as? Item)[index]
+    return childItem
   }
   
   /// Uses diffable snapshot.
@@ -217,6 +217,8 @@ public extension OutlineViewDiffableDataSource {
   
   /// Performs a `reloadData`
   func reloadData() {
+    // ensure data source is set
+    outlineView?.dataSource = self
     outlineView?.reloadData()
   }
   
@@ -242,14 +244,19 @@ public extension OutlineViewDiffableDataSource {
     // Calculate changes
     let oldIndexedIds = oldSnapshot.indexedIds()
     let newIndexedIds = newSnapshot.indexedIds()
-    let difference = newIndexedIds.difference(from: oldIndexedIds)
-    let differenceWithMoves = difference.inferringMoves()
     
-    // FIXME: handle moves that cancel each other out, such as removing a row and re-inserting it in the same position.
-    // do it without animation
+    let difference = newIndexedIds.changes(from: oldIndexedIds)
+    let differenceWithMoves = difference.inferringMoves()
     
     // Update our snapshot before we animate
     diffableSnapshot = newSnapshot
+    
+    // When a data source is not set, reload the first time
+    guard let _ = outlineView?.dataSource else {
+      reloadData()
+      return
+    }
+
     
     // Animate with completion
     NSAnimationContext.runAnimationGroup({ context in
@@ -317,15 +324,15 @@ public extension OutlineViewDiffableDataSource {
             }
         }
       }
+            
+      self.outlineView?.endUpdates()
       
-      // Reload parents
+      // Reload parents now
       parentItemsToReload.forEach { parentItemIDToReload in
         if let itemInNewSnapshot = newSnapshot.itemForId(parentItemIDToReload) {
           outlineView?.reloadItem(itemInNewSnapshot, reloadChildren: false)
         }
       }
-      
-      self.outlineView?.endUpdates()
     }, completionHandler: completionHandler)
   }
 }

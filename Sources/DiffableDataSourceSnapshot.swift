@@ -66,9 +66,14 @@ public extension DiffableDataSourceSnapshot {
   /// Returns the number of children for the given parent item.
   /// - Parameter parentItem: Pass nil to retrieve the number of root items.
   func numberOfItems(in parentItem: Item?) -> Int {
-    guard let parentItem = parentItem else { return rootIds.count }
+    guard let parentItem = parentItem else {
+      return rootIds.count
+    }
+    
     guard let parentNode = idForItem(parentItem).flatMap(nodeForId) else {
-      os_log(.error, log: errors, "numberOfItems - Cannot find parent item “%s”", String(describing: parentItem))
+      #if DEBUG
+      print("numberOfItems - Cannot find parent item \(String(describing: parentItem))")
+      #endif
       return 0
     }
     return parentNode.children.count
@@ -77,9 +82,14 @@ public extension DiffableDataSourceSnapshot {
   /// Returns children for the given parent item.
   /// - Parameter parentItem: Pass nil to retrieve the number of root items.
   func childrenOfItem(_ parentItem: Item?) -> [Item] {
-    guard let parentItem = parentItem else { return rootIds.compactMap(itemForId) }
+    guard let parentItem = parentItem else {
+      return rootIds.compactMap(itemForId)
+    }
+    
     guard let parentNode = idForItem(parentItem).flatMap(nodeForId) else {
-      os_log(.error, log: errors, "childrenOfItem - Cannot find parent item “%s”", String(describing: parentItem))
+#if DEBUG
+      print("childrenOfItem - Cannot find parent item \(String(describing: parentItem))")
+      #endif
       return []
     }
     return parentNode.children.compactMap(itemForId)
@@ -89,7 +99,9 @@ public extension DiffableDataSourceSnapshot {
   /// - Parameter childItem: Child item added to the snapshot before.
   func parentOfItem(_ childItem: Item) -> Item? {
     guard let childId = idForItem(childItem), let childNode = nodeForId(childId) else {
-      os_log(.error, log: errors, "Cannot find item “%s”", String(describing: childItem))
+#if DEBUG
+      print("Cannot find item \(String(describing: childItem))")
+      #endif
       return nil
     }
     return childNode.parent.flatMap(itemForId)
@@ -137,7 +149,9 @@ public extension DiffableDataSourceSnapshot {
   /// - Parameter childItem: Child item added to the snapshot before.
   func indexOfItem(_ childItem: Item) -> Int? {
     guard let childId = idForItem(childItem), let childNode = nodeForId(childId) else {
-      os_log(.error, log: errors, "Cannot find item “%s”", String(describing: childItem))
+#if DEBUG
+      print("Cannot find item \(String(describing: childItem))")
+      #endif
       return nil
     }
     let children = childIdsWithParentId(childNode.parent)
@@ -246,7 +260,9 @@ public extension DiffableDataSourceSnapshot {
     guard contains([item, targetItem]) else { return false }
     
     guard let itemId = idForItem(item), let targetItemId = idForItem(targetItem), itemId != targetItemId else {
-      os_log(.error, log: errors, "Cannot move items around themselves")
+#if DEBUG
+      print("Cannot move items around themselves")
+      #endif
       return false
     }
     
@@ -360,14 +376,18 @@ private extension DiffableDataSourceSnapshot {
   func validateItemsNotFound(_ items: [Item]) -> Bool {
     // Items must all be distinct
     guard Set(items).count == items.count else {
-      os_log(.error, log: errors, "Non-unique items cannot be added")
+#if DEBUG
+      print("Non-unique items cannot be added")
+      #endif
       return false
     }
     
     let existingItems = items.map { $0.id }.compactMap(itemForId)
     guard existingItems.isEmpty else {
       let ids = existingItems.map { $0.id }.joined(separator: ", ")
-      os_log(.error, log: errors, "Items with IDs “%s” have already been added", ids)
+#if DEBUG
+      print("Items with IDs “\(ids)” have already been added")
+      #endif
       return false
     }
     return true
@@ -380,7 +400,9 @@ private extension DiffableDataSourceSnapshot {
     
     guard missingItems.isEmpty else {
       let strings = missingItems.map(String.init(describing:)).joined(separator: ", ")
-      os_log(.error, log: errors, "Items [%s] have not been added", strings)
+#if DEBUG
+      print("Items [\(strings)] have not been added")
+      #endif
       return false
     }
     return true
@@ -425,7 +447,9 @@ private extension DiffableDataSourceSnapshot {
     
     // Ignore if parent item (to append to) passed but not found
     if parentItemToAppendTo != nil && appendToParentNode == nil {
-      os_log(.error, log: errors, "insertItems - Cannot find parent item “%s”", String(describing: parentItemToAppendTo))
+#if DEBUG
+      print("insertItems - Cannot find parent item \(String(describing: parentItemToAppendTo))")
+      #endif
       return false
     }
     
@@ -434,7 +458,9 @@ private extension DiffableDataSourceSnapshot {
     let targetItemNode = targetItemId != nil ? nodeForId(targetItemId!) : nil
 
     if targetItem != nil && targetItemNode == nil {
-      os_log(.error, log: errors, "Cannot find item “%s”", String(describing: targetItem))
+#if DEBUG
+      print("Cannot find item \(String(describing: targetItem))")
+      #endif
       return false
     }
 
@@ -537,6 +563,3 @@ private extension DiffableDataSourceSnapshot {
     return true
   }
 }
-
-/// Local handle for logging errors.
-private let errors: OSLog = .init(subsystem: "OutlineViewDiffableDataSource", category: "DiffableDataSourceSnapshot")
