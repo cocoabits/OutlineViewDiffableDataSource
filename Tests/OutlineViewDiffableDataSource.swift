@@ -3,14 +3,19 @@ import OutlineViewDiffableDataSource
 
 final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
-  private class OutlineItem: NSObject, OutlineViewItem {
+  private class OutlineItem: OutlineViewItem {
     let title: String
-    init(title: String) { self.title = title }
-    override var hash: Int { title.hash }
-    override func isEqual(_ object: Any?) -> Bool {
-      guard let outlintItem = object as? OutlineItem else { return false }
-      return outlintItem.title == title
+    
+    init(id: String, title: String) {
+      self.title = title
+      super.init(id: id)
     }
+    
+    convenience init(title: String) {
+      self.init(id: title, title: title)
+    }
+    
+    override var hash: Int { title.hash }
   }
 
   private lazy var outlineView: NSOutlineView = {
@@ -25,7 +30,8 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
     // GIVEN: Empty data source
     let dataSource: OutlineViewDiffableDataSource = .init(outlineView: outlineView)
-    XCTAssertTrue(outlineView.dataSource === dataSource)
+    // Data source is only set when applying a snapshot. We perform a reloadData the first time.
+    XCTAssertTrue(outlineView.dataSource == nil)
 
     // WHEN: Outline view is loaded
     outlineView.layoutSubtreeIfNeeded()
@@ -85,6 +91,8 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
     // THEN: Outline view is updated
     outlineView.expandItem(nil, expandChildren: true)
+    outlineView.layoutSubtreeIfNeeded()
+    
     let expandedItems = (0 ..< outlineView.numberOfRows)
       .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineItem }
     XCTAssertEqual(expandedItems.map(\.title), [a, a2, a3, b, b1].map(\.title))
@@ -123,6 +131,8 @@ final class OutlineViewDiffableDataSourceTests: XCTestCase {
 
     // THEN: Outline view is updated
     outlineView.expandItem(nil, expandChildren: true)
+    outlineView.layoutSubtreeIfNeeded()
+    
     let expandedItems = (0 ..< outlineView.numberOfRows)
       .map(outlineView.item(atRow:)).compactMap { $0 as? OutlineItem }
     XCTAssertEqual(expandedItems.map(\.title), [a, a1, a2, a3, b, b1, b2].map(\.title))

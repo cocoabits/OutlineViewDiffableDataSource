@@ -1,35 +1,47 @@
 import Foundation
 import os
 
-/// Container for the tree of items.
+/// The internal data source snapshot used by `OutlineViewDiffableDataSource`. Stores and represents the tree of nodes.
+/// All operations are to be performed on a snapshot directly before being passed on `outlineDataSource.apply(...)`
+///
+/// As items of type `OutlineViewItem` are inserted / removed / moved etc, the snapshot manages and updates an internal map for performing lookups.
+/// Each item is stored as a `DiffableDataSourceSnapshot.Node` to keep track of its parent / children. When an item is moved to a new parent,
+/// the internal map is subsequently updated to reflect this.
 public struct DiffableDataSourceSnapshot {
 
   /// Shortcut for outline view objects.
-  public typealias Item = NSObject
+  public typealias Item = OutlineViewItem
 
   /// Shortcut for outline view object IDs.
-  typealias ItemID = UUID
+  public typealias ItemID = String
 
-  /// Used to store tree nodes for items.
+  /// Represents a single node of the tree.
   private struct Node: Hashable {
+    let itemID: ItemID
+    
+    /// Node parent's `itemID`
+    var parentID: ItemID?
 
-    /// Parent of the stored item.
-    var parent: ItemID?
-
-    /// Children of the stored item.
-    var children: [ItemID]
+    /// `itemID`s of node's children
+    var childrenIDs: [ItemID]
+  }
+  
+  public enum NodePosition {
+    case on
+    case before
+    case after
   }
 
-  /// Identifiers associated with items.
-  private var idsForItems: [Item: ItemID] = [:]
+  /// Maps items to their identifiers
+  private var mapItemToID: [Item: ItemID] = [:]
 
-  /// Items associated with identifiers.
-  private var itemsForIds: [ItemID: Item] = [:]
+  /// Maps identifiers to their items
+  private var mapIDToItem: [ItemID: Item] = [:]
 
-  /// Tree nodes with stored items.
-  private var nodesForIds: [ItemID: Node] = [:]
+  /// Maps `itemID`s to `Node`
+  private var mapIDToNode: [ItemID: Node] = [:]
 
-  /// Root nodes with stored items.
+  /// ItemIDs of root items
   private var rootIds: [ItemID] = []
 
   /// Used to remember reloaded items until flush.
@@ -45,60 +57,112 @@ public extension DiffableDataSourceSnapshot {
 
   /// Total number of stored items.
   var numberOfItems: Int {
-    nodesForIds.count
+    mapIDToNode.count
   }
 
-  /// Stored items sorted from top to bottom.
+  /// Stored items sorted from top to bottom. Generated from `getSortedIndexedNodes()`.
   func sortedItems() -> [Item] {
-    indexedIds().map(\.itemId).compactMap(itemForId)
+    getSortedIndexedNodes().map(\.itemId).compactMap(getItemForID)
   }
 
   /// Returns true if the given item is in the snapshot.
   /// - Parameter item: The item to check.
   func containsItem(_ item: Item) -> Bool {
-    idForItem(item) != nil
+    getIDForItem(item) != nil
   }
 
   /// Returns the number of children for the given parent item.
   /// - Parameter parentItem: Pass nil to retrieve the number of root items.
   func numberOfItems(in parentItem: Item?) -> Int {
-    guard let parentItem = parentItem else { return rootIds.count }
-    guard let parentNode = idForItem(parentItem).flatMap(nodeForId) else {
-      os_log(.error, log: errors, "Cannot find parent item “%s”", String(describing: parentItem))
+    guard let parentItem = parentItem else {
+      return rootIds.count
+    }
+    
+    guard let parentNode = getIDForItem(parentItem).flatMap(getNodeForID) else {
+      #if DEBUG
+      print("numberOfItems - Cannot find parent item \(String(describing: parentItem))")
+      #endif
       return 0
     }
-    return parentNode.children.count
+    return parentNode.childrenIDs.count
   }
 
   /// Returns children for the given parent item.
   /// - Parameter parentItem: Pass nil to retrieve the number of root items.
   func childrenOfItem(_ parentItem: Item?) -> [Item] {
-    guard let parentItem = parentItem else { return rootIds.compactMap(itemForId) }
-    guard let parentNode = idForItem(parentItem).flatMap(nodeForId) else {
-      os_log(.error, log: errors, "Cannot find parent item “%s”", String(describing: parentItem))
+    guard let parentItem = parentItem else {
+      return rootIds.compactMap(getItemForID)
+    }
+    
+    guard let parentNode = getIDForItem(parentItem).flatMap(getNodeForID) else {
+#if DEBUG
+      print("childrenOfItem - Cannot find parent item \(String(describing: parentItem))")
+      #endif
       return []
     }
-    return parentNode.children.compactMap(itemForId)
+    return parentNode.childrenIDs.compactMap(getItemForID)
   }
 
   /// Returns parent for the given child item. Root items have `nil` as a parent.
   /// - Parameter childItem: Child item added to the snapshot before.
   func parentOfItem(_ childItem: Item) -> Item? {
-    guard let childId = idForItem(childItem), let childNode = nodeForId(childId) else {
-      os_log(.error, log: errors, "Cannot find item “%s”", String(describing: childItem))
+    guard let childId = getIDForItem(childItem), let childNode = getNodeForID(childId) else {
+#if DEBUG
+      print("Cannot find item \(String(describing: childItem))")
+      #endif
       return nil
     }
-    return childNode.parent.flatMap(itemForId)
+    return childNode.parentID.flatMap(getItemForID)
+  }
+  
+  
+  /// Returns `true` if the given item is a child of a given item or its sub-items
+  /// - Parameters:
+  ///   - item: item to check
+  ///   - anotherItem: another item
+  func isItemDescendant(_ item: Item, of anotherItem: Item) -> Bool {
+    if item == anotherItem { return true }
+    
+    let childrenOfOther = childrenOfItem(anotherItem)
+    if childrenOfOther.contains(item) {
+      return true
+    }
+    else {
+      for childOfOther in childrenOfOther {
+        return isItemDescendant(item, of: childOfOther)
+      }
+    }
+    return false
+  }
+  
+  /// Returns `true` if the given item is a parent or a grand parent of a given item
+  /// - Parameters:
+  ///   - item: item to check
+  ///   - anotherItem: another item
+  func isItemAncestor(_ item: Item, of anotherItem: Item) -> Bool {
+    if item == anotherItem { return true }
+    
+    if let parentOfOther = parentOfItem(anotherItem) {
+      if item == parentOfOther {
+        return true
+      }
+      else {
+        return isItemAncestor(item, of: parentOfOther)
+      }
+    }
+    return false
   }
 
   /// Returns index of the given child item in its parent, or `nil` if the given item is not in the snapshot.
   /// - Parameter childItem: Child item added to the snapshot before.
   func indexOfItem(_ childItem: Item) -> Int? {
-    guard let childId = idForItem(childItem), let childNode = nodeForId(childId) else {
-      os_log(.error, log: errors, "Cannot find item “%s”", String(describing: childItem))
+    guard let childId = getIDForItem(childItem), let childNode = getNodeForID(childId) else {
+#if DEBUG
+      print("Cannot find item \(String(describing: childItem))")
+      #endif
       return nil
     }
-    let children = childIdsOfItemWithId(childNode.parent)
+    let children = getChildIDsForParentID(childNode.parentID)
     return children.firstIndex(of: childId)
   }
 
@@ -108,32 +172,7 @@ public extension DiffableDataSourceSnapshot {
   /// - Returns: False if items cannot be added e.g. because the parent is not in the snapshot.
   @discardableResult
   mutating func appendItems(_ newItems: [Item], into parentItem: Item? = nil) -> Bool {
-    guard validateNewItems(newItems) else { return false }
-    guard let parentItem = parentItem else {
-      let newIds = newItems.map { newItem -> ItemID in
-        let newId = ItemID()
-        itemsForIds[newId] = newItem
-        idsForItems[newItem] = newId
-        nodesForIds[newId] = .init(parent: nil, children: [])
-        return newId
-      }
-      rootIds.append(contentsOf: newIds)
-      return true
-    }
-    guard let parentId = idForItem(parentItem), var parentNode = nodeForId(parentId) else {
-      os_log(.error, log: errors, "Cannot find parent item “%s”", String(describing: parentItem))
-      return false
-    }
-    let newIds = newItems.map { newItem -> ItemID in
-      let newId = ItemID()
-      itemsForIds[newId] = newItem
-      idsForItems[newItem] = newId
-      nodesForIds[newId] = .init(parent: parentId, children: [])
-      return newId
-    }
-    parentNode.children.append(contentsOf: newIds)
-    nodesForIds[parentId] = parentNode
-    return true
+    return insertItems(newItems, into: parentItem)
   }
 
   /// Inserts items before the given item.
@@ -142,7 +181,7 @@ public extension DiffableDataSourceSnapshot {
   /// - Returns: False if items cannot be inserted e.g. because the target item is not in the snapshot.
   @discardableResult
   mutating func insertItems(_ newItems: [Item], beforeItem: Item) -> Bool {
-    insertItems(newItems, aroundItem: beforeItem) { $0 }
+    insertItems(newItems, nextTo: beforeItem, atPosition: .before)
   }
 
   /// Inserts items after the given item.
@@ -151,38 +190,50 @@ public extension DiffableDataSourceSnapshot {
   /// - Returns: False if items cannot be inserted e.g. because the target item is not in the snapshot.
   @discardableResult
   mutating func insertItems(_ newItems: [Item], afterItem: Item) -> Bool {
-    insertItems(newItems, aroundItem: afterItem) { $0 + 1 }
+    insertItems(newItems, nextTo: afterItem, atPosition: .after)
   }
 
   /// Deletes given items and their children.
   /// - Parameter existingItems: Items added to the snapshot before.
   /// - Returns: False if items cannot be deleted e.g. because some of them are not in the snapshot.
   @discardableResult
-  mutating func deleteItems(_ existingItems: [Item]) -> Bool {
-    guard validateExistingItems(Set(existingItems)) else { return false }
+  mutating func deleteItems(_ existingItems: [Item], withChildren: Bool = true) -> Bool {
+    guard contains(existingItems) else { return false }
 
-    var affectedIds = Set(existingItems.compactMap(idForItem))
-    enumerateItemIds { indexedId in
-      guard let parentId = indexedId.parentId, affectedIds.contains(parentId) else { return }
-      affectedIds.insert(indexedId.itemId)
+    var itemIdsToRemove = Set(existingItems.compactMap(getIDForItem))
+    
+    if withChildren {
+      enumerateIndexedNodes { indexedNode in
+        if let parentId = indexedNode.parentId, itemIdsToRemove.contains(parentId) {
+          itemIdsToRemove.insert(indexedNode.itemId)
+        }
+      }
     }
 
-    let affectedParentIds = Set(affectedIds.map { nodeForId($0)?.parent })
-    let affectedItems = affectedIds.compactMap(itemForId)
-    affectedIds.forEach { affectedId in
-      itemsForIds.removeValue(forKey: affectedId)
-      nodesForIds.removeValue(forKey: affectedId)
+    // Grab a copy before removing these
+    let affectedParentIds = Set(itemIdsToRemove.map { getNodeForID($0)?.parentID })
+    let itemsToRemove = itemIdsToRemove.compactMap(getItemForID)
+    
+    // Now remove all items that have deleted
+    itemIdsToRemove.forEach { affectedId in
+      mapIDToItem.removeValue(forKey: affectedId)
+      mapIDToNode.removeValue(forKey: affectedId)
     }
-    affectedItems.forEach { affectedItem in
-      idsForItems.removeValue(forKey: affectedItem)
+    
+    itemsToRemove.forEach { affectedItem in
+      mapItemToID.removeValue(forKey: affectedItem)
     }
-    idsPendingReload.subtract(affectedIds)
-    affectedParentIds.forEach {
-      guard let affectedParentId = $0 else {
-        rootIds.removeAll { affectedIds.contains($0) }
+    idsPendingReload.subtract(itemIdsToRemove)
+        
+    affectedParentIds.forEach { affectedParentId in
+      guard let affectedParentId = affectedParentId else {
+        // remove root item
+        rootIds.removeAll { itemIdsToRemove.contains($0) }
         return
       }
-      nodesForIds[affectedParentId]?.children.removeAll { affectedIds.contains($0) }
+      
+      // Now remove items from affected parents
+      mapIDToNode[affectedParentId]?.childrenIDs.removeAll { itemIdsToRemove.contains($0) }
     }
     return true
   }
@@ -197,8 +248,9 @@ public extension DiffableDataSourceSnapshot {
   /// - Returns: False if items cannot be reloaded e.g. because some of them are not in the snapshot.
   @discardableResult
   mutating func reloadItems(_ items: [Item]) -> Bool {
-    guard validateExistingItems(Set(items)) else { return false }
-    let ids = items.compactMap(idForItem)
+    guard contains(items) else { return false }
+    
+    let ids = items.compactMap(getIDForItem)
     idsPendingReload.formUnion(ids)
     return true
   }
@@ -206,27 +258,44 @@ public extension DiffableDataSourceSnapshot {
   /// Returns all items marked for reloading and forgets them.
   mutating func flushReloadedItems() -> [Item] {
     guard idsPendingReload.isEmpty == false else { return [] }
+    
     var result: [Item] = []
-    enumerateItemIds { indexedItemId in
-      let itemId = indexedItemId.itemId
-      guard idsPendingReload.contains(itemId), let item = itemForId(itemId) else { return }
+    enumerateIndexedNodes { indexedNode in
+      let itemId = indexedNode.itemId
+      guard idsPendingReload.contains(itemId), let item = getItemForID(itemId) else { return }
       result.append(item)
     }
     idsPendingReload.removeAll()
     return result
   }
 
-  /// Returns true if the given item can be moved next to the target item.
+  /// Returns `true` if the given item can be moved next to the target item.
   /// - Parameter item: Item added to the snapshot before.
   /// - Parameter targetItem: The target item added to the snapshot before.
-  func canMoveItem(_ item: Item, aroundItem targetItem: Item) -> Bool {
-    guard validateExistingItems([item, targetItem]) else { return false }
-    guard let itemId = idForItem(item), let targetItemId = idForItem(targetItem), itemId != targetItemId else {
-      os_log(.error, log: errors, "Cannot move items around themselves")
+  /// - Returns: Returns `false` if either the `item` or the `targetItem` do not exist in the snapshot
+  func canMoveItem(_ item: Item, nextTo targetItem: Item) -> Bool {
+    guard contains([item, targetItem]) else { return false }
+    
+    guard let itemId = getIDForItem(item),
+          let targetItemId = getIDForItem(targetItem),
+          itemId != targetItemId else {
+#if DEBUG
+      print("Cannot move items around themselves")
+      #endif
       return false
     }
-    let parentIds = sequence(first: targetItemId) { self.nodeForId($0)?.parent }
-    return parentIds.allSatisfy { $0 != itemId }
+    
+    let not = (!)
+    return not(isItemAncestor(item, of: targetItem))
+  }
+  
+  /// Returns `true` if the given item can be moved into the target item.
+  /// - Parameter item: Item added to the snapshot before.
+  /// - Parameter targetItem: The target item added to the snapshot before.
+  /// - Returns: Returns `false` if either the `item` or the `targetItem` do not exist in the snapshot
+  func canMoveItem(_ item: Item, into targetItem: Item) -> Bool {
+    // Same checks performed
+    return canMoveItem(item, nextTo: targetItem)
   }
 
   /// Moves the given item above the target item.
@@ -235,7 +304,7 @@ public extension DiffableDataSourceSnapshot {
   /// - Returns: False if the given item cannot be moved e.g. because it’s parent of the target item.
   @discardableResult
   mutating func moveItem(_ item: Item, beforeItem: Item) -> Bool {
-    moveItem(item, aroundItem: beforeItem) { $0 }
+    moveItem(item, nextTo: beforeItem, atPosition: .before)
   }
 
   /// Moves the given item below the target item.
@@ -244,7 +313,16 @@ public extension DiffableDataSourceSnapshot {
   /// - Returns: False if the given item cannot be moved e.g. because it’s parent of the target item.
   @discardableResult
   mutating func moveItem(_ item: Item, afterItem: Item) -> Bool  {
-    moveItem(item, aroundItem: afterItem) { $0 + 1 }
+    moveItem(item, nextTo: afterItem, atPosition: .after)
+  }
+  
+  /// Moves the given item into target item.
+  /// - Parameter item: Item added to the snapshot before.
+  /// - Parameter afterItem: The target item to move into (i.e. target will become item's new parent)
+  /// - Returns: False if the given item cannot be moved e.g. because it’s parent of the target item.
+  @discardableResult
+  mutating func moveItem(_ item: Item, into targetParent: Item) -> Bool  {
+    moveItem(item, nextTo: targetParent, atPosition: .on)
   }
 
   /// Enumerates all items from top to bottom.
@@ -252,9 +330,9 @@ public extension DiffableDataSourceSnapshot {
   /// - Parameter item: Enumerated item.
   /// - Parameter parentItem: Parent item if available.
   func enumerateItems(using block: (_ item: Item, _ parentItem: Item?) -> Void) {
-    enumerateItemIds { id in
-      if let item = itemForId(id.itemId) {
-        block(item, id.parentId.flatMap(itemForId))
+    enumerateIndexedNodes { id in
+      if let item = getItemForID(id.itemId) {
+        block(item, id.parentId.flatMap(getItemForID))
       }
     }
   }
@@ -264,9 +342,8 @@ public extension DiffableDataSourceSnapshot {
 
 extension DiffableDataSourceSnapshot {
 
-  /// Container for sorting.
-  struct IndexedID: Hashable {
-
+  /// A fully indexed Node representation for sorting / diffing. Contains an `indexPath`.
+  struct IndexedNode: Hashable {
     /// Item identifier.
     let itemId: ItemID
 
@@ -274,46 +351,49 @@ extension DiffableDataSourceSnapshot {
     let parentId: ItemID?
 
     /// Full path to the item.
-    let itemPath: IndexPath
+    let indexPath: IndexPath
 
     /// Only IDs should be equal.
     static func == (lhs: Self, rhs: Self) -> Bool {
-      lhs.itemId == rhs.itemId
+      lhs.itemId == rhs.itemId && lhs.parentId == rhs.parentId
     }
 
     /// Only ID means as hash.
     func hash(into hasher: inout Hasher) {
       hasher.combine(itemId)
+      hasher.combine(parentId)
     }
   }
 
-  /// Identifiers of stored items sorted from top to bottom.
-  func indexedIds() -> [IndexedID] {
-    var result: [IndexedID] = []
-    enumerateItemIds { indexedId in
-      result.append(indexedId)
+  /// A linear sorted list, from top to bottom, of indexed nodes (i.e. nodes that include an `IndexPath`)
+  func getSortedIndexedNodes() -> [IndexedNode] {
+    var result: [IndexedNode] = []
+    enumerateIndexedNodes { indexedNode in
+      result.append(indexedNode)
     }
     return result
   }
 
   /// Returns an identifier of the stored item if available.
   /// - Parameter item: Stored item.
-  func idForItem(_ item: Item) -> ItemID? {
-    idsForItems[item]
+  func getIDForItem(_ item: Item) -> ItemID? {
+    mapItemToID[item]
   }
 
   /// Returns a stored item for the given identifier if available.
   /// - Parameter id: Identifier of the item to return.
-  func itemForId(_ id: ItemID) -> Item? {
-    itemsForIds[id]
+  public func getItemForID(_ id: ItemID) -> Item? {
+    mapIDToItem[id]
   }
 
 
   /// Returns identifiers of children for the given parent identifier.
   /// - Parameter parentId: Pass nil to retrieve root item identifiers.
-  func childIdsOfItemWithId(_ parentId: ItemID?) -> [ItemID] {
-    guard let parentNode = parentId.flatMap(nodeForId) else { return rootIds }
-    return parentNode.children
+  func getChildIDsForParentID(_ parentId: ItemID?) -> [ItemID] {
+    if let parentNode = parentId.flatMap(getNodeForID) {
+      return parentNode.childrenIDs
+    }
+    return rootIds
   }
 }
 
@@ -323,33 +403,42 @@ private extension DiffableDataSourceSnapshot {
 
   /// Returns a node for the given identifier if available.
   /// - Parameter id: Identifier of the node to return.
-  private func nodeForId(_ id: ItemID) -> Node? {
-    nodesForIds[id]
+  private func getNodeForID(_ id: ItemID) -> Node? {
+    mapIDToNode[id]
   }
 
-  /// Returns true if this snapshot does not have any passed items.
-  /// - Parameter newItems: New items not yet added to the snapshot.
-  func validateNewItems(_ newItems: [Item]) -> Bool {
-    guard Set(newItems).count == newItems.count else {
-      os_log(.error, log: errors, "Repeating items cannot be added")
+  /// Returns `true` if this snapshot does not have any passed items.
+  /// - Parameter items: Items not yet added to the snapshot.
+  func validateItemsNotFound(_ items: [Item]) -> Bool {
+    // Items must all be distinct
+    guard Set(items).count == items.count else {
+#if DEBUG
+      print("Non-unique items cannot be added")
+      #endif
       return false
     }
-    let existingIds = newItems.compactMap(idForItem)
-    guard existingIds.isEmpty else {
-      let ids = existingIds.map(\.uuidString).joined(separator: ", ")
-      os_log(.error, log: errors, "Items with IDs “%s” have already been added", ids)
+    
+    let existingItems = items.map { $0.id }.compactMap(getItemForID)
+    guard existingItems.isEmpty else {
+      let ids = existingItems.map { $0.id }.joined(separator: ", ")
+#if DEBUG
+      print("Items with IDs “\(ids)” have already been added")
+      #endif
       return false
     }
     return true
   }
 
-  /// Returns true if this snapshot has got all passed items.
-  /// - Parameter existingItems: Items already added to the snapshot.
-  func validateExistingItems(_ existingItems: Set<Item>) -> Bool {
-    let missingItems = existingItems.subtracting(idsForItems.keys)
+  /// Returns `true` if this snapshot has got all passed items.
+  /// - Parameter items: Items to validate
+  func contains(_ items: [Item]) -> Bool {
+    let missingItems = Set(items.map{ $0.id }).subtracting(mapItemToID.values)
+    
     guard missingItems.isEmpty else {
       let strings = missingItems.map(String.init(describing:)).joined(separator: ", ")
-      os_log(.error, log: errors, "Items [%s] have not been added", strings)
+#if DEBUG
+      print("Items [\(strings)] have not been added")
+      #endif
       return false
     }
     return true
@@ -357,55 +446,113 @@ private extension DiffableDataSourceSnapshot {
 
   /// Recursively goes through the whole tree and runs a callback with node.
   /// - Parameter block: Callback for every node in the tree.
-  /// - Parameter indexedId: Container for sorting.
-  func enumerateItemIds(using block: (_ indexedId: IndexedID) -> Void) {
+  /// - Parameter indexedNode: Node representation for sorting / diffing
+  func enumerateIndexedNodes(using block: (_ indexedNode: IndexedNode) -> Void) {
     func enumerateChildrenOf(_ parentId: ItemID?, parentPath: IndexPath) {
-      childIdsOfItemWithId(parentId).enumerated().forEach { offset, itemId in
+      getChildIDsForParentID(parentId).enumerated().forEach { offset, itemId in
         let itemPath = parentPath.appending(offset)
-        let indexedId = IndexedID(itemId: itemId, parentId: parentId, itemPath: itemPath)
-        block(indexedId)
+        let indexedNode = IndexedNode(itemId: itemId, parentId: parentId, indexPath: itemPath)
+        
+        block(indexedNode)
+        
         enumerateChildrenOf(itemId, parentPath: itemPath)
       }
     }
     enumerateChildrenOf(nil, parentPath: .init())
   }
 
-  /// Inserts items next to the target item using a calculator for the insertion index.
+  /// Inserts items next to a target item given a target position **OR** inserts (appends) items into a parent item.
   /// - Parameter newItems: The list of items to insert.
-  /// - Parameter targetItem: The target item added to the snapshot before.
-  /// - Parameter indexFrom: Calculator for the insertion index.
-  /// - Parameter targetIndex: Current index of the target item.
+  /// - Parameter targetItem: The target item added to the snapshot before. If this is given, `parentItem` must be `nil`
+  /// - Parameter position: Target position
+  /// - Parameter parentItem: Append to a parent item. If this is given, `targetItem` should be `nil`.
   /// - Returns: False if items cannot be inserted e.g. because some of them are already in the snapshot.
-  mutating func insertItems(_ newItems: [Item], aroundItem targetItem: Item, using indexFrom: (_ targetIndex: Int) -> Int) -> Bool {
-    guard validateNewItems(newItems) else { return false }
-    guard let targetItemId = idForItem(targetItem), let targetNode = nodeForId(targetItemId) else {
-      os_log(.error, log: errors, "Cannot find item “%s”", String(describing: targetItem))
+  mutating func insertItems(_ newItems: [Item], nextTo targetItem: Item? = nil, atPosition position: NodePosition = .before, into parentItemToAppendTo: Item? = nil) -> Bool {
+    guard validateItemsNotFound(newItems) else {
       return false
     }
-    guard let parentId = targetNode.parent else {
-      let newIds = newItems.map { newItem -> ItemID in
-        let newId = ItemID()
-        itemsForIds[newId] = newItem
-        idsForItems[newItem] = newId
-        nodesForIds[newId] = .init(parent: nil, children: [])
-        return newId
-      }
-      let targetIndex = rootIds.firstIndex(of: targetItemId).unsafelyUnwrapped
-      let insertionIndex = indexFrom(targetIndex)
-      rootIds.insert(contentsOf: newIds, at: insertionIndex)
-      return true
+    
+    if targetItem != nil && parentItemToAppendTo != nil {
+      fatalError("Cannot pass both a target item to insert next to, as well as a parent item to append to. Must used one of the two.")
     }
+    
+    // MARK: Appending
+    // Find the parent node if adding to a parent
+    var appendToParentId = parentItemToAppendTo.flatMap(getIDForItem)
+    var appendToParentNode = appendToParentId.flatMap(getNodeForID)
+    
+    // Ignore if parent item (to append to) passed but not found
+    if parentItemToAppendTo != nil && appendToParentNode == nil {
+#if DEBUG
+      print("insertItems - Cannot find parent item \(String(describing: parentItemToAppendTo))")
+      #endif
+      return false
+    }
+    
+    // MARK: Inserting
+    let targetItemId = targetItem.flatMap(getIDForItem)
+    let targetItemNode = targetItemId.flatMap(getNodeForID)
+
+    if targetItem != nil && targetItemNode == nil {
+#if DEBUG
+      print("Cannot find item \(String(describing: targetItem))")
+      #endif
+      return false
+    }
+
+    // If we're inserting next to an item, update the parent we need to use
+    if let targetItemNode = targetItemNode {
+      appendToParentId = targetItemNode.parentID
+      appendToParentNode = appendToParentId.flatMap(getNodeForID)
+    }
+      
+    
+    // Shared logic
+    // Update our maps
     let newIds = newItems.map { newItem -> ItemID in
-      let newId = ItemID()
-      itemsForIds[newId] = newItem
-      idsForItems[newItem] = newId
-      nodesForIds[newId] = .init(parent: parentId, children: [])
+      let newId = newItem.id
+      mapIDToItem[newId] = newItem
+      mapItemToID[newItem] = newId
+      
+      // Create a node
+      mapIDToNode[newId] = .init(itemID: newId, parentID: appendToParentId, childrenIDs: [])
+      
       return newId
     }
-    var parentNode = nodeForId(parentId).unsafelyUnwrapped
-    let targetIndex = parentNode.children.firstIndex(of: targetItemId).unsafelyUnwrapped
-    parentNode.children.insert(contentsOf: newIds, at: indexFrom(targetIndex))
-    nodesForIds[parentId] = parentNode
+    
+    // Inserting?
+    if let targetItemId = targetItemId {
+      
+      // Inserting into a parent?
+      if let parentId = appendToParentId, appendToParentNode != nil {
+        let targetIndex = appendToParentNode!.childrenIDs.firstIndex(of: targetItemId) ?? .zero
+        let insertionIndex = position == .before ? targetIndex : targetIndex + 1
+        
+        appendToParentNode!.childrenIDs.insert(contentsOf: newIds, at: insertionIndex)
+        
+        // Update the parent node map
+        mapIDToNode[parentId] = appendToParentNode!
+      }
+      else {
+        let targetIndex = rootIds.firstIndex(of: targetItemId).unsafelyUnwrapped
+        let insertionIndex = position == .before ? targetIndex : targetIndex + 1
+        rootIds.insert(contentsOf: newIds, at: insertionIndex)
+      }
+    }
+    else {
+      // Apppend IDs
+      if let parentId = appendToParentId, appendToParentNode != nil {
+        appendToParentNode!.childrenIDs.append(contentsOf: newIds)
+        
+        // Update the parent node map
+        mapIDToNode[parentId] = appendToParentNode!
+      }
+      else {
+        // No parent, adding to the root
+        rootIds.append(contentsOf: newIds)
+      }
+    }
+    
     return true
   }
 
@@ -415,40 +562,49 @@ private extension DiffableDataSourceSnapshot {
   /// - Parameter indexFrom: Calculator for the insertion index.
   /// - Parameter targetIndex: Current index of the target item.
   /// - Returns: False if the item cannot be moved e.g. because it’s a parent of the target item.
-  mutating func moveItem(_ item: Item, aroundItem targetItem: Item, using indexFrom: (_ targetIndex: Int) -> Int) -> Bool {
-    guard canMoveItem(item, aroundItem: targetItem) else { return false }
+  mutating func moveItem(_ item: Item, nextTo targetItem: Item, atPosition position: NodePosition = .before) -> Bool {
+    if position == .on && !canMoveItem(item, into: targetItem) {
+      return false
+    }
+    else if !canMoveItem(item, nextTo: targetItem) {
+      return false
+    }
 
     // Remove item from old parent
-    let itemId = idForItem(item).unsafelyUnwrapped
-    var itemNode = nodeForId(itemId).unsafelyUnwrapped
-    if let oldParentId = itemNode.parent {
-      var oldParentNode = nodeForId(oldParentId).unsafelyUnwrapped
-      oldParentNode.children.removeAll { $0 == itemId }
-      nodesForIds[oldParentId] = oldParentNode
+    let movingItemId = getIDForItem(item).unsafelyUnwrapped
+    var movingItemNode = getNodeForID(movingItemId).unsafelyUnwrapped
+    if let oldParentId = movingItemNode.parentID {
+      var oldParentNode = getNodeForID(oldParentId).unsafelyUnwrapped
+      oldParentNode.childrenIDs.removeAll { $0 == movingItemId }
+      mapIDToNode[oldParentId] = oldParentNode
     } else {
-      rootIds.removeAll { $0 == itemId }
+      rootIds.removeAll { $0 == movingItemId }
     }
 
     // Insert item into new parent
-    let targetItemId = idForItem(targetItem).unsafelyUnwrapped
-    let targetItemNode = nodeForId(targetItemId).unsafelyUnwrapped
-    if let newParentId = targetItemNode.parent {
-      itemNode.parent = newParentId
-      var newParentNode = nodeForId(newParentId).unsafelyUnwrapped
-      let targetIndex = newParentNode.children.firstIndex(of: targetItemId).unsafelyUnwrapped
-      let insertionIndex = indexFrom(targetIndex)
-      newParentNode.children.insert(itemId, at: insertionIndex)
-      nodesForIds[newParentId] = newParentNode
+    let targetItemId = getIDForItem(targetItem).unsafelyUnwrapped
+    let targetItemNode = getNodeForID(targetItemId).unsafelyUnwrapped
+    
+    // Use target as the new parent if moving into target, else use target's parent
+    let newParentId = position == .on ? targetItemId : targetItemNode.parentID
+    
+    if let newParentId = newParentId {
+      movingItemNode.parentID = newParentId
+      
+      var newParentNode = getNodeForID(newParentId).unsafelyUnwrapped
+      let targetIndex = newParentNode.childrenIDs.firstIndex(of: targetItemId) ?? .zero
+      let insertionIndex = position == .before || position == .on ? targetIndex : targetIndex + 1
+      
+      newParentNode.childrenIDs.insert(movingItemId, at: insertionIndex)
+      mapIDToNode[newParentId] = newParentNode
     } else {
-      itemNode.parent = nil
+      movingItemNode.parentID = nil
+      
       let targetIndex = rootIds.firstIndex(of: targetItemId).unsafelyUnwrapped
-      let insertionIndex = indexFrom(targetIndex)
-      rootIds.insert(itemId, at: insertionIndex)
+      let insertionIndex = position == .before ? targetIndex : targetIndex + 1
+      rootIds.insert(movingItemId, at: insertionIndex)
     }
-    nodesForIds[itemId] = itemNode
+    mapIDToNode[movingItemId] = movingItemNode
     return true
   }
 }
-
-/// Local handle for logging errors.
-private let errors: OSLog = .init(subsystem: "OutlineViewDiffableDataSource", category: "DiffableDataSourceSnapshot")

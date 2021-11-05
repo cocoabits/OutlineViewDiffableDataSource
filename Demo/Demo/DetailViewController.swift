@@ -20,7 +20,6 @@ final class DetailViewController: NSViewController {
     let viewController = NSTabViewController()
     viewController.tabStyle = .unspecified
     viewController.transitionOptions = []
-    viewController.view.wantsLayer = false
     viewController.tabViewItems = [emptyViewController, singleViewController, multiViewController]
       .map(NSTabViewItem.init(viewController:))
     return viewController

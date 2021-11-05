@@ -4,7 +4,6 @@ import OutlineViewDiffableDataSource
 
 /// The number of controls for an empty outline view selection.
 final class EmptyViewController: NSViewController {
-
   /// Multiline text editor for the outline contents.
   private lazy var scrollableEditor: NSScrollView = {
     let scrollView = NSTextView.scrollablePlainDocumentContentTextView()
@@ -56,17 +55,25 @@ extension EmptyViewController {
 
     guard let textView = scrollableEditor.documentView as? NSTextView, textView.string.isEmpty else { return }
     textView.string = """
-      Parent 1 / Child 11
-      Parent 1 / Child 12
-      Parent 1 / Child 13
-      Parent 2
-      Parent 2 / Child 21
-      Child 21 / Leaf 211
-      Child 21 / Leaf 212
-      Parent 3 / Child 31
-      Parent 3 / Child 32
-      Parent 3 / Child 33
+      Cars / Toyota
+      Cars / Honda
+      Cars / Tesla
+      Phones
+      Phones / Samsung
+      Samsung / Samsung Note
+      Samsung / Samsung Nexus
+      Samsung Nexus / Nexus 5
+      OS / macOS
+      OS / Windows
+      OS / Linux
       """
+    
+//    Parent 3
+//    Parent 3 / Child 31
+//    Child 31 / Child 33
+//    Child 33 / Child 32
+
+    fillSidebar(nil)
   }
 }
 
@@ -77,9 +84,11 @@ private extension EmptyViewController {
   /// Replaces the whole tree with the given contents.
   @IBAction func fillSidebar(_ sender: Any?) {
     guard let textView = scrollableEditor.documentView as? NSTextView else { return }
+    
+    // Create a new snapshot from entered Parent / Child items.
     var snapshot: DiffableDataSourceSnapshot = .init()
     snapshot.fillItem(nil, with: textView.string)
-    snapshotBinding.wrappedValue = snapshot
+    snapshotBinding.wrappedValue = snapshot    
   }
 
   /// Replaces text with sidebar contents.
@@ -89,8 +98,8 @@ private extension EmptyViewController {
     var items: [String] = []
     snapshot.enumerateItems { item, parentItem in
       items.append([
-        (parentItem as? GroupOutlineViewItem)?.title ?? (parentItem as? MasterOutlineViewItem)?.title,
-        (item as? GroupOutlineViewItem)?.title ?? (item as? MasterOutlineViewItem)?.title,
+        (parentItem as? MasterGroupOutlineViewItem)?.title ?? (parentItem as? MasterOutlineViewItem)?.title,
+        (item as? MasterGroupOutlineViewItem)?.title ?? (item as? MasterOutlineViewItem)?.title,
       ].compactMap { $0 }.joined(separator: " / "))
     }
     textView.string = items.joined(separator: "\n")

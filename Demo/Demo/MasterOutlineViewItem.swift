@@ -2,25 +2,21 @@ import AppKit
 import OutlineViewDiffableDataSource
 
 /// Sidebar iitems.
-class MasterOutlineViewItem: NSObject, OutlineViewItem {
-
+class MasterOutlineViewItem: OutlineViewItem {
   /// Visible string.
   let title: String
 
   /// Creates a new item ready for insertion into the sidebar.
-  init(title: String) { self.title = title }
-
-  /// Returns a private cell view type.
-  func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { MasterCellView.self }
-
-  /// Necessary for sets.
-  override var hash: Int { title.hash }
-
-  /// Necessary for outline view reloading.
-  override func isEqual(_ object: Any?) -> Bool {
-    guard let masterItem = object as? MasterOutlineViewItem else { return false }
-    return masterItem.title == title
+  init(id: String, title: String) {
+    self.title = title
+    super.init(id: id)
   }
+  
+  /// Returns a private cell view type.
+  override func cellViewType(for tableColumn: NSTableColumn?) -> NSTableCellView.Type { MasterCellView.self }
+
+  /// Necessary for supporting drag-n-drop and expand-collapse.
+  override var hash: Int { title.hash }
 }
 
 // MARK: - Private API

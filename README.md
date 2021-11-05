@@ -35,6 +35,12 @@ mutating func reloadItems(_ items: [Item]) -> Bool
 
 Not sure how this ends, but the `DiffableDataSourceSnapshot` is a value type. Just like its “official” counterpart, this struct can be built and applied from the background thread, as far as I know 😅 
 
+## Requirements
+
+SPM: macOS 10.11
+
+Demo: macOS 10.15
+
 ## Demo App
 
 The Demo Mac app is a playground for breaking the library. The snapshot API is 100% covered by Tests, but I would much appreciate any help with QA.

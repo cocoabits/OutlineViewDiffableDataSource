@@ -1,17 +1,9 @@
 import XCTest
 import OutlineViewDiffableDataSource
 
-private class SnapshotItem: NSObject, OutlineViewItem {
-  let id: String
-  init(id: String) { self.id = id }
-  override var hash: Int { id.hash }
-  override func isEqual(_ object: Any?) -> Bool {
-    guard let snapshotItem = object as? SnapshotItem else { return false }
-    return snapshotItem.id == id
-  }
-}
+private class SnapshotItem: OutlineViewItem {}
 
-extension Collection where Element == NSObject {
+extension Collection where Element == OutlineViewItem {
   func snapshotItemIds() -> [String] {
     compactMap { $0 as? SnapshotItem }.map(\.id)
   }
@@ -168,7 +160,7 @@ final class DiffableDataSourceSnapshotTests: XCTestCase {
     let a = SnapshotItem(id: "a")
     let b = SnapshotItem(id: "b")
 
-    // WHEN: You try to use one the them as parent
+    // WHEN: You try to use one of the them as parent
     var snapshot: DiffableDataSourceSnapshot = .init()
     XCTAssertFalse(snapshot.appendItems([b], into: a))
 
@@ -422,11 +414,11 @@ final class DiffableDataSourceSnapshotTests: XCTestCase {
     XCTAssertTrue(snapshot.appendItems([b1, a2], into: b))
 
     // THEN: Only some items can be moved
-    XCTAssertFalse(snapshot.canMoveItem(b, aroundItem: b))
-    XCTAssertFalse(snapshot.canMoveItem(c, aroundItem: d))
-    XCTAssertFalse(snapshot.canMoveItem(d, aroundItem: c))
-    XCTAssertFalse(snapshot.canMoveItem(b, aroundItem: a2))
-    XCTAssertTrue(snapshot.canMoveItem(b1, aroundItem: a3))
+    XCTAssertFalse(snapshot.canMoveItem(b, nextTo: b))
+    XCTAssertFalse(snapshot.canMoveItem(c, nextTo: d))
+    XCTAssertFalse(snapshot.canMoveItem(d, nextTo: c))
+    XCTAssertFalse(snapshot.canMoveItem(b, nextTo: a2))
+    XCTAssertTrue(snapshot.canMoveItem(b1, nextTo: a3))
 
     // WHEN: You move some items
     XCTAssertFalse(snapshot.moveItem(d, beforeItem: c))
@@ -440,6 +432,32 @@ final class DiffableDataSourceSnapshotTests: XCTestCase {
     XCTAssertEqual(snapshot.childrenOfItem(a).compactMap { $0 as? SnapshotItem }, [a1, a2, a3])
     XCTAssertEqual(snapshot.childrenOfItem(b).compactMap { $0 as? SnapshotItem }, [b1, b2])
     XCTAssertTrue(snapshot.childrenOfItem(c).isEmpty)
+  }
+  
+  func testMovingWithChildren() {
+    
+    // GIVEN: Some items
+    let cars = SnapshotItem(id: "Cars")
+    let models = SnapshotItem(id: "Models")
+    let camry = SnapshotItem(id: "Toyota Camry")
+    let mycars = SnapshotItem(id: "My Cars")
+    let honda = SnapshotItem(id: "Honda")
+    
+    // WHEN: You insert them
+    var snapshot: DiffableDataSourceSnapshot = .init()
+    XCTAssertTrue(snapshot.appendItems([cars, mycars]))
+    XCTAssertTrue(snapshot.appendItems([models], into: cars))
+    XCTAssertTrue(snapshot.appendItems([camry], into: models))
+    XCTAssertTrue(snapshot.appendItems([honda], into: mycars))
+    
+    // WHEN: You move some items
+    XCTAssertTrue(snapshot.moveItem(models, beforeItem: honda))
+    
+    // THEN: The snapshot is correct
+    XCTAssertEqual(snapshot.childrenOfItem(nil).compactMap { $0 as? SnapshotItem }, [cars, mycars])
+    XCTAssertTrue(snapshot.childrenOfItem(cars).isEmpty)
+    XCTAssertEqual(snapshot.childrenOfItem(mycars).compactMap { $0 as? SnapshotItem }, [models, honda])
+    XCTAssertEqual(snapshot.childrenOfItem(models).compactMap { $0 as? SnapshotItem }, [camry])
   }
 
   func testMovingNonExisting() {
